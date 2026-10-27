@@ -1,0 +1,6 @@
+Trying to load file: 'D:\digimon-re\game.droid'
+Please enter a path (or drag and drop) to a valid directory:
+Path: D:\digimon-re\out\fonts
+[Fonts] 0 out of 6
+[Fonts] 0 out of 6
+[Fonts] 6 out of 6

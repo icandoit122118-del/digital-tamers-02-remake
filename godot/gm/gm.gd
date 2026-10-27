@@ -1,0 +1,677 @@
+extends Node
+## GameMaker 런타임 호환 계층 (autoload "GM")
+## - 추출 데이터(sprites/objects/rooms.json) 로드, 룸 전환, 인스턴스 생성/이벤트 루프,
+##   마우스 이벤트, 사운드, 폰트, 전역 변수(global.*)
+
+const ROOT := "D:/digimon-re/out/"
+const DATA := ROOT + "data/"
+const SPR := ROOT + "sprites/"
+const SND := ROOT + "sounds/"
+const RES_ASSETS := "res://assets/"
+const FPS := 60
+
+var sprites := {}
+var objects := {}
+var rooms := {}
+var db := {"digimons": {}, "evolutions": {}, "items": {}, "quests": []}
+
+## GML global.* 변수 및 리메이크 실시간 테이머/파트너 데이터
+var g := {
+	"Language": 0, "soundFX": true, "music": true, "DigimonVoice": true,
+	"gameSaveSlot": 0, "MusicVOL": 100, "butCanClick": true,
+	"ExtraVAR": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+	"PreviousRoom": "", "NPC_battle_stage": 0, "isAdventureMode": false, "isInfinityMode": false,
+	"scrollPerc": 0,
+	"dataMode": "demo", "reducedMotion": false,
+	"partnerId": 5, "partnerLv": 28, "bits": 24500,
+	"hp": 2200, "hp_max": 2200, "en": 88, "xp": 74,
+	"atk": 384, "def": 310, "sp_atk": 340, "spd": 265, "luk": 48,
+	"equippedItem": 10,
+	"enemyId": 87, "enemyLv": 32, "battleZone": "Magma Mountain",
+	"BattleBG": "bg_Btl_Magma_Mountain", "MainRoomBG": "BG26", "sanctuaryThemeIdx": 0,
+}
+
+const MODERN_WORLD_WHITELIST := {
+	"obj_Digi": true,
+	"obj_Digi_Battle": true,
+	"obj_Enemy_Battle": true,
+	"obj_Floor": true,
+	"obj_CTRL_persistent": true,
+	"obj_Transition": true,
+}
+
+const LEGACY_UI_OBJECTS := {
+	"obj_Game_Title": true,
+	"obj_MainMenu_Buttons": true,
+	"obj_OptionBut01": true,
+	"obj_Options_But02": true,
+	"obj_Back_Button": true,
+	"obj_Room_Label": true,
+	"obj_MainHUD": true,
+	"obj_MainButtons": true,
+	"obj_Side_Buttons": true,
+	"obj_CloseGame_Button": true,
+	"obj_FoodBar": true,
+	"obj_FoodSlot": true,
+	"obj_Digi_Info": true,
+	"obj_Floor_Deco": true,
+	"obj_DecoLayer01": true,
+	"obj_DecoLayer02": true,
+	"obj_TrainingStats_HUD": true,
+	"obj_Training_Buttons": true,
+	"obj_TrainingBoost": true,
+	"obj_TrainingBoost_indicator": true,
+	"obj_Money_Tab_HUD": true,
+	"obj_Battle_CTRL": true,
+	"obj_ENEMY_STATS": true,
+	"obj_Top_Hud": true,
+	"obj_SpecialHUD_Player": true,
+	"obj_Special_PLAYER": true,
+	"obj_SpecialHUD_Enemy": true,
+	"obj_Special_ENEMY": true,
+	"obj_BLOCK_button": true,
+	"obj_Command_Button": true,
+	"obj_Battle_Countdown": true,
+	"obj_Abilities": true,
+	"obj_SpCond_Atk": true,
+	"obj_SpCond_SpAtk": true,
+	"obj_SpCond_Extra": true,
+	"obj_Equipment_stats": true,
+	"obj_LeaderSkill": true,
+	"obj_Pause_Button": true,
+	"obj_Big_Button": true,
+	"obj_Long_Buttons": true,
+	"obj_Camera": true,
+	"obj_Wall": true,
+	"obj_Terrain": true,
+}
+
+var use_modern_ui := true
+var battle: Dictionary = {}
+var instances: Array = []
+var room_name := ""
+var room_data: Dictionary = {}
+var bg_hspeed := {}
+var bg_vspeed := {}
+var world: Node2D
+var gui: CanvasLayer
+var fx_gui: CanvasLayer
+var ui: TamerUI
+var bg: GMBackground
+var log_unhandled: Array = []
+
+var _pending_room := ""
+var _next_id := 100000
+var _tex_cache := {}
+var _fonts := {}
+var _snd_index := {}
+var _stream_cache := {}
+var _warned := {}
+var _press := false
+var _release := false
+var _press_pos := Vector2.ZERO
+var _release_pos := Vector2.ZERO
+var mouse := Vector2.ZERO
+var frame := 0
+
+
+func _ready() -> void:
+	for s in _load_json("sprites.json"):
+		sprites[s["name"]] = s
+	for o in _load_json("objects.json"):
+		objects[o["name"]] = o
+	for r in _load_json("rooms.json"):
+		rooms[r["name"]] = r
+	if FileAccess.file_exists(DATA + "full_db.json"):
+		db = _load_json("full_db.json")
+	_index_sounds(SND)
+	_index_sounds(SND + "external/")
+
+	bg = GMBackground.new()
+	bg.z_index = -4096
+	bg.scale = Vector2(2, 2)
+	bg.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	add_child(bg)
+	world = Node2D.new()
+	world.scale = Vector2(2, 2)
+	world.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	add_child(world)
+	gui = CanvasLayer.new()
+	gui.layer = 40
+	add_child(gui)
+	ui = TamerUI.new()
+	gui.add_child(ui)
+	fx_gui = CanvasLayer.new()
+	fx_gui.layer = 60
+	add_child(fx_gui)
+	init_battle_state()
+	Engine.physics_ticks_per_second = FPS
+
+
+func init_battle_state() -> void:
+	var mode: String = str(g.get("dataMode", "demo"))
+	var pid: int = int(g.get("partnerId", 5))
+	var p_entry: Dictionary = db["digimons"].get(str(pid), {})
+	var p_name: String = str(p_entry.get("name", "Greymon"))
+	var p_lv: int = int(g.get("partnerLv", 28))
+	var p_hp_max: int = int(g.get("hp_max", 2200))
+	var p_atk: int = int(g.get("atk", 384))
+	var p_def: int = int(g.get("def", 310))
+	var p_sp_atk: int = int(g.get("sp_atk", 340))
+	var p_spd: int = int(g.get("spd", 265))
+	var p_luk: int = int(g.get("luk", 48))
+	var p_icon: int = pid
+	if mode == "worst":
+		pid = 152
+		p_name = "BlackWarGreymon-X (Reinforced Awakened)"
+		p_lv = 999
+		p_hp_max = 9999
+		p_atk = 999
+		p_def = 850
+		p_sp_atk = 999
+		p_spd = 420
+		p_luk = 88
+		p_icon = 152
+	elif mode == "empty":
+		pid = 2
+		p_name = "Koromon (Rookie Trial)"
+		p_lv = 5
+		p_hp_max = 950
+		p_atk = 180
+		p_def = 140
+		p_sp_atk = 175
+		p_spd = 210
+		p_luk = 65
+		p_icon = 2
+
+	var eid: int = int(g.get("enemyId", 87))
+	var e_entry: Dictionary = db["digimons"].get(str(eid), {})
+	var e_name: String = str(e_entry.get("name", "SkullGreymon"))
+	var e_lv: int = int(g.get("enemyLv", 32))
+	var e_hp_max: int = int(e_entry.get("base_hp", 2400)) + e_lv * 48
+	var e_atk: int = int(e_entry.get("base_atk", 320)) + e_lv * 3
+	var e_def: int = int(e_entry.get("base_def", 260)) + e_lv * 2
+	var e_spd: int = int(e_entry.get("base_spd", 240)) + e_lv
+	var e_luk: int = int(e_entry.get("base_luk", 38))
+
+	var prev_tactic: String = str(battle.get("ai_tactic", "gamble"))
+
+	battle = {
+		"bonus_bits": 0,
+		"auto_skill": true,
+		"speed2x": true,
+		"ai_tactic": prev_tactic,
+		"finished": false,
+		"win": true,
+		"result_banner": "",
+		"p_id": pid,
+		"p_name": p_name,
+		"p_lv": p_lv,
+		"p_icon": p_icon,
+		"p_hp": p_hp_max,
+		"p_hp_max": p_hp_max,
+		"p_sp": 45.0,
+		"p_atk": p_atk,
+		"p_def": p_def,
+		"p_sp_atk": p_sp_atk,
+		"p_spd": p_spd,
+		"p_luk": p_luk,
+		"p_ai_state": "APPROACH",
+		"p_dodge_count": 0,
+		"p_parry_count": 0,
+		"jackpot_count": 0,
+		"shield_active": false,
+		"e_id": eid,
+		"e_name": e_name,
+		"e_lv": e_lv,
+		"e_icon": eid,
+		"e_hp": e_hp_max,
+		"e_hp_max": e_hp_max,
+		"e_sp": 30.0,
+		"e_atk": e_atk,
+		"e_def": e_def,
+		"e_spd": e_spd,
+		"e_luk": e_luk,
+		"e_ai_state": "APPROACH",
+		"slot_timer": 2.0,
+		"fever_timer": 0.0,
+		"slot_reels": "7 · 7 · 7",
+		"slot_title": "LUCK OVERDRIVE",
+		"slot_desc": "Stats + AI Jump/Evade/Skill RNG Active",
+		"last_dice": 97,
+		"last_tier": "★ 777 JACKPOT ★",
+		"last_mult": 7.77,
+		"last_log": "[AI COMBAT] %s vs %s (%s) — Autonomous Jump/Evade & RNG Active!" % [p_name, e_name, str(g.get("battleZone", "Arena"))],
+		"skills": [
+			{"name": "Nova Blast", "tag": "Ranged · 125% SP.ATK", "cd": 0.3, "cd_max": 2.4, "power": 1.25, "sp_gain": 24.0, "last_roll": "D100:84 → 4.0x SSR", "last_mult": 4.0},
+			{"name": "Aerial Horn Dive", "tag": "Jump Strike · 155% ATK", "cd": 0.7, "cd_max": 3.2, "power": 1.55, "sp_gain": 28.0, "last_roll": "D100:68 → 2.2x CRIT", "last_mult": 2.2},
+			{"name": "Miracle Guard", "tag": "Parry & Counter · LUK%", "cd": 1.2, "cd_max": 4.2, "power": 1.20, "sp_gain": 25.0, "last_roll": "COUNTER READY", "last_mult": 2.2},
+			{"name": "Mega Burst", "tag": "Ultimate · 260% × RNG", "cd": 0.0, "cd_max": 1.0, "power": 2.60, "sp_gain": 0.0, "last_roll": "SP 100% AUTO FIRE", "last_mult": 7.77},
+		]
+	}
+
+
+func evolve_partner(to_id: int, bonus_hp: int = 600, bonus_atk: int = 95, bonus_def: int = 80, bonus_sp: int = 90) -> void:
+	g["partnerId"] = to_id
+	g["partnerLv"] = int(g["partnerLv"]) + 5
+	g["hp_max"] = int(g["hp_max"]) + bonus_hp
+	g["hp"] = int(g["hp_max"])
+	g["atk"] = int(g["atk"]) + bonus_atk
+	g["def"] = int(g["def"]) + bonus_def
+	g["sp_atk"] = int(g["sp_atk"]) + bonus_sp
+	g["spd"] = int(g["spd"]) + 28
+	g["luk"] = mini(99, int(g["luk"]) + 8)
+	init_battle_state()
+
+
+func start_stage_battle(enemy_id: int, enemy_lv: int, zone_label: String, custom_bg: String = "") -> void:
+	g["enemyId"] = enemy_id
+	g["enemyLv"] = enemy_lv
+	g["battleZone"] = zone_label
+	g["BattleBG"] = custom_bg if not custom_bg.is_empty() else GMBackground.resolve_battle_bg_for_zone(zone_label)
+	init_battle_state()
+	room_transition(5, "room_Battle")
+
+
+func save_game_state() -> bool:
+	var f := FileAccess.open("user://tamer_save_v2.json", FileAccess.WRITE)
+	if f == null:
+		return false
+	f.store_string(JSON.stringify(g, "\t"))
+	return true
+
+
+func load_game_state() -> bool:
+	if not FileAccess.file_exists("user://tamer_save_v2.json"):
+		return false
+	var parsed = JSON.parse_string(FileAccess.get_file_as_string("user://tamer_save_v2.json"))
+	if parsed is Dictionary:
+		for k in parsed.keys():
+			g[k] = parsed[k]
+		init_battle_state()
+		return true
+	return false
+
+
+# ---------- 데이터 / 리소스 ----------
+func _load_json(name: String) -> Variant:
+	var res_p := RES_ASSETS + "data/" + name
+	var p := res_p if FileAccess.file_exists(res_p) else (DATA + name)
+	return JSON.parse_string(FileAccess.get_file_as_string(p))
+
+
+func col(c: int) -> Color:
+	return Color8(c & 0xFF, (c >> 8) & 0xFF, (c >> 16) & 0xFF)
+
+
+func tex(spr: String, frame_i: int = 0) -> Texture2D:
+	var key := "%s:%d" % [spr, frame_i]
+	if _tex_cache.has(key):
+		return _tex_cache[key]
+	var t: Texture2D = null
+	var candidates := [
+		"%ssprites/bg_HD/%s_%d.png" % [RES_ASSETS, spr, frame_i],
+		"%ssprites/%s/%s_%d.png" % [RES_ASSETS, spr, spr, frame_i],
+		"%sbg_HD/%s_%d.png" % [SPR, spr, frame_i],
+		"%s%s/%s_%d.png" % [SPR, spr, spr, frame_i],
+	]
+	var p := ""
+	for c in candidates:
+		if FileAccess.file_exists(c):
+			p = c
+			break
+	if p != "":
+		var img := Image.load_from_file(p)
+		if img != null:
+			t = ImageTexture.create_from_image(img)
+	elif not _warned.has(key):
+		_warned[key] = true
+		push_warning("missing sprite frame: " + key)
+	_tex_cache[key] = t
+	return t
+
+
+func tex_item(frame_i: int, prefer_hd: bool = true) -> Texture2D:
+	if prefer_hd:
+		var hd_key := "spr_Items_HD:%d" % frame_i
+		if _tex_cache.has(hd_key):
+			return _tex_cache[hd_key]
+		var hd_path := "%sspr_Items_HD/spr_Items_HD_%d.png" % [SPR, frame_i]
+		if FileAccess.file_exists(hd_path):
+			var img := Image.load_from_file(hd_path)
+			if img != null:
+				var hd_tex := ImageTexture.create_from_image(img)
+				_tex_cache[hd_key] = hd_tex
+				return hd_tex
+	return tex("spr_Items", frame_i)
+
+
+func font(name: String) -> GMFont:
+	if not _fonts.has(name):
+		_fonts[name] = GMFont.load_font(name)
+	return _fonts[name]
+
+
+# ---------- 사운드 ----------
+func _index_sounds(dir: String) -> void:
+	var d := DirAccess.open(dir)
+	if d == null:
+		return
+	for f in d.get_files():
+		var ext := f.get_extension().to_lower()
+		if ext == "ogg" or ext == "wav":
+			var key := f.get_basename().to_lower()
+			if not _snd_index.has(key):
+				_snd_index[key] = dir + f
+
+
+func _stream(name: String, loop: bool) -> AudioStream:
+	var key := name.to_lower()
+	var ck := "%s:%s" % [key, loop]
+	if _stream_cache.has(ck):
+		return _stream_cache[ck]
+	var st: AudioStream = null
+	if _snd_index.has(key):
+		var path: String = _snd_index[key]
+		if path.get_extension().to_lower() == "ogg":
+			var o := AudioStreamOggVorbis.load_from_file(path)
+			if o != null:
+				o.loop = loop
+				st = o
+		else:
+			var w := AudioStreamWAV.load_from_file(path)
+			if w != null:
+				if loop:
+					w.loop_mode = AudioStreamWAV.LOOP_FORWARD
+					w.loop_begin = 0
+					w.loop_end = int(w.get_length() * w.mix_rate)
+				st = w
+	elif not _warned.has(key):
+		_warned[key] = true
+		push_warning("missing sound: " + name)
+	_stream_cache[ck] = st
+	return st
+
+
+func audio_play_sound(name: String, loop: bool = false) -> AudioStreamPlayer:
+	var st := _stream(name, loop)
+	if st == null:
+		return null
+	var p := AudioStreamPlayer.new()
+	p.stream = st
+	p.set_meta("snd", name.to_lower())
+	add_child(p)
+	p.play()
+	if not loop:
+		p.finished.connect(p.queue_free)
+	return p
+
+
+func audio_stop_all() -> void:
+	for c in get_children():
+		if c is AudioStreamPlayer:
+			c.queue_free()
+
+
+func audio_is_playing(name: String) -> bool:
+	for c in get_children():
+		if c is AudioStreamPlayer and not c.is_queued_for_deletion() and c.get_meta("snd", "") == name.to_lower() and c.playing:
+			return true
+	return false
+
+
+func play_music(name: String) -> void:
+	if g["music"] == true:
+		audio_play_sound(name, true)
+
+
+func play_sound_fx(name: String) -> void:
+	if g["soundFX"] == true:
+		audio_play_sound(name, false)
+
+
+# ---------- 인스턴스 ----------
+func z_for_depth(d: float) -> int:
+	return int(-signf(d) * log(1.0 + absf(d)) * 100.0)
+
+
+func make_instance(obj_name: String) -> GMInstance:
+	var path := "res://gm/objects/%s.gd" % obj_name
+	var inst: GMInstance
+	if ResourceLoader.exists(path):
+		inst = load(path).new()
+	else:
+		inst = GMInstance.new()
+	inst.obj_name = obj_name
+	inst.id = _next_id
+	_next_id += 1
+	var o = objects.get(obj_name)
+	if o != null:
+		inst.sprite_index = o["sprite"] if o["sprite"] != null else ""
+		inst.visible = o["visible"]
+		inst.depth = o["depth"]
+		inst.persistent = o["persistent"]
+	else:
+		push_warning("unknown object: " + obj_name)
+	return inst
+
+
+func _attach(inst: GMInstance) -> void:
+	inst.z_index = z_for_depth(inst.depth)
+	instances.append(inst)
+	if inst.get("_on_gui") == true:
+		fx_gui.add_child(inst)
+	else:
+		world.add_child(inst)
+
+
+func instance_create(px: float, py: float, obj_name: String) -> GMInstance:
+	var inst := make_instance(obj_name)
+	inst.x = px
+	inst.y = py
+	inst.xstart = px
+	inst.ystart = py
+	_attach(inst)
+	inst.create()
+	return inst
+
+
+func instance_exists(obj_name: String) -> bool:
+	for i in instances:
+		if i.obj_name == obj_name and not i.dead:
+			return true
+	return false
+
+
+func instance_removed(inst: GMInstance) -> void:
+	instances.erase(inst)
+	inst.queue_free()
+
+
+func room_transition(type: int, target: String) -> void:
+	if instance_exists("obj_Transition"):
+		return
+	var t := instance_create(0, 0, "obj_Transition")
+	t.type = type
+	t.target = target
+
+
+# ---------- 룸 ----------
+func room_goto(name: String) -> void:
+	_pending_room = name
+
+
+func _switch_room(name: String) -> void:
+	if not rooms.has(name):
+		push_error("room not found: " + name)
+		return
+	g["PreviousRoom"] = room_name
+	for i in instances.duplicate():
+		if not i.persistent:
+			i.dead = true
+			instances.erase(i)
+			i.queue_free()
+	bg_hspeed.clear()
+	bg_vspeed.clear()
+	room_name = name
+	room_data = rooms[name]
+	bg.setup(room_data)
+	for l in room_data["layers"]:
+		if l["bg"] != null and l["name"].ends_with("Colour"):
+			RenderingServer.set_default_clear_color(col(int(l["bg"]["color"])))
+
+	var inst_depth := {}
+	for l in room_data["layers"]:
+		if l["instIds"] != null:
+			for iid in l["instIds"]:
+				inst_depth[int(iid)] = l["depth"]
+
+	for d in room_data["instances"]:
+		var obj_name_str: String = str(d["obj"])
+		if use_modern_ui and not MODERN_WORLD_WHITELIST.has(obj_name_str):
+			continue
+		var obj = objects.get(obj_name_str)
+		if obj != null and obj["persistent"] and instance_exists(obj_name_str):
+			continue
+		var inst := make_instance(obj_name_str)
+		inst.x = d["x"]
+		inst.y = d["y"]
+		inst.xstart = d["x"]
+		inst.ystart = d["y"]
+		inst.image_xscale = d["sx"]
+		inst.image_yscale = d["sy"]
+		inst.image_angle = d["rot"]
+		inst.image_index = d["imgIndex"]
+		inst.image_speed = d["imgSpeed"]
+		inst.depth = inst_depth.get(int(d["id"]), inst.depth)
+		_attach(inst)
+		inst.create()
+		if d["code"] != null:
+			_apply_creation_code(inst, d["code"])
+	_run_room_code(room_data["creationCode"])
+	if ui != null and use_modern_ui:
+		ui.rebuild_for_room(name)
+
+
+## 인스턴스 생성 코드: `변수 = 값;` 단순 대입만 해석한다.
+func _apply_creation_code(inst: GMInstance, code_name: String) -> void:
+	var text := FileAccess.get_file_as_string(ROOT + "code/" + code_name + ".gml")
+	var re := RegEx.create_from_string("^\\s*([A-Za-z_]\\w*)\\s*=\\s*(.+?);\\s*$")
+	for line in text.split("\n"):
+		var m := re.search(line)
+		if m == null:
+			if not line.strip_edges().is_empty():
+				log_unhandled.append("%s: %s" % [code_name, line.strip_edges()])
+			continue
+		var v: Variant = _parse_value(m.get_string(2))
+		var key := m.get_string(1)
+		if key in inst:
+			inst.set(key, v)
+		else:
+			inst.vars[key] = v
+
+
+func _parse_value(s: String) -> Variant:
+	s = s.strip_edges()
+	if s == "true": return true
+	if s == "false": return false
+	if s.is_valid_int(): return int(s)
+	if s.is_valid_float(): return float(s)
+	if s.begins_with("\"") and s.ends_with("\""): return s.substr(1, s.length() - 2)
+	return s  # room_* / obj_* / spr_* 등 식별자는 이름 문자열로 취급
+
+
+## 룸 생성 코드: audio_stop_all / PlayMusic / __background_set(HSpeed|VSpeed) / 음악 조건부 재생만 처리
+func _run_room_code(code_name: Variant) -> void:
+	if code_name == null:
+		return
+	var text := FileAccess.get_file_as_string(ROOT + "code/" + code_name + ".gml")
+	var cond := RegEx.create_from_string("if \\(global\\.music == true && !audio_is_playing\\((\\w+)\\)\\)\\s*\\{\\s*audio_stop_all\\(\\);\\s*audio_play_sound\\(\\1, \\d+, true\\);\\s*\\}")
+	var cm := cond.search(text)
+	if cm != null:
+		if g["music"] == true and not audio_is_playing(cm.get_string(1)):
+			audio_stop_all()
+			audio_play_sound(cm.get_string(1), true)
+		text = text.replace(cm.get_string(), "")
+	var re_bg := RegEx.create_from_string("__background_set\\(e__BG\\.(HSpeed|VSpeed),\\s*(\\d+),\\s*(-?[\\d.]+)\\)")
+	var re_play := RegEx.create_from_string("^PlayMusic\\((\\w+)\\);")
+	var in_enum := false
+	for raw in text.split("\n"):
+		var line := raw.strip_edges()
+		if line.is_empty() or line == "{" or line == "}":
+			continue
+		if line.begins_with("enum "):
+			in_enum = true
+			continue
+		if in_enum:
+			if line == "}":
+				in_enum = false
+			continue
+		if line == "audio_stop_all();":
+			audio_stop_all()
+		elif re_play.search(line) != null:
+			play_music(re_play.search(line).get_string(1))
+		elif re_bg.search(line) != null:
+			var m := re_bg.search(line)
+			if m.get_string(1) == "HSpeed":
+				bg_hspeed[int(m.get_string(2))] = float(m.get_string(3))
+			else:
+				bg_vspeed[int(m.get_string(2))] = float(m.get_string(3))
+		else:
+			log_unhandled.append("%s: %s" % [code_name, line])
+
+
+# ---------- 입력 / 메인 루프 ----------
+func _input(event: InputEvent) -> void:
+	if event is InputEventMouseMotion:
+		mouse = event.position
+	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		mouse = event.position
+		if event.pressed:
+			_press = true
+			_press_pos = event.position
+		else:
+			_release = true
+			_release_pos = event.position
+
+
+func _physics_process(_dt: float) -> void:
+	frame += 1
+	for i in instances.duplicate():
+		if not i.dead:
+			i._gm_step()
+	bg.tick()
+	_mouse_events()
+	if _pending_room != "":
+		var r := _pending_room
+		_pending_room = ""
+		_switch_room(r)
+
+
+func _mouse_events() -> void:
+	var pressed := _press
+	var released := _release
+	_press = false
+	_release = false
+	var w_mouse := mouse / world.scale
+	var w_press := _press_pos / world.scale
+	var w_release := _release_pos / world.scale
+	for i in instances.duplicate():
+		if i.dead:
+			continue
+		var m_pos := mouse if i.get("_on_gui") == true else w_mouse
+		var p_pos := _press_pos if i.get("_on_gui") == true else w_press
+		var r_pos := _release_pos if i.get("_on_gui") == true else w_release
+		var inside: bool = i.contains_point(m_pos)
+		if inside != i._hover:
+			i._hover = inside
+			if inside:
+				i.mouse_enter()
+			else:
+				i.mouse_leave()
+		if pressed and not i.dead and i.contains_point(p_pos):
+			i.mouse_left_pressed()
+		if released and not i.dead and i.contains_point(r_pos):
+			i.mouse_left_released()
+		if released and not i.dead:
+			i.global_left_released()

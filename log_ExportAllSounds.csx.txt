@@ -1,0 +1,13 @@
+Trying to load file: 'D:\digimon-re\game.droid'
+Please enter a path (or drag and drop) to a valid directory:
+Path: D:\digimon-re\out\sounds
+Export external audio files as well? (Will copy to a separate folder.) (Y/N): N
+Group sounds by audio group? (Y/N): N
+[Sounds] 0 out of 564
+[Sounds] 0 out of 564
+[Sounds] 26 out of 564
+[Sounds] 61 out of 564
+[Sounds] 179 out of 564
+[Sounds] 310 out of 564
+[Sounds] 439 out of 564
+[Sounds] 564 out of 564

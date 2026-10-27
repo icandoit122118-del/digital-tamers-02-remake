@@ -1,0 +1,2 @@
+Trying to load file: 'D:\digimon-re\game.droid'
+DONE sprites=10890 objects=759 rooms=101 tilesets=2

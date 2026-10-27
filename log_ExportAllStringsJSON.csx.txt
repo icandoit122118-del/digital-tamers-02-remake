@@ -1,0 +1,5 @@
+Trying to load file: 'D:\digimon-re\game.droid'
+Please enter a path (or drag and drop) to save the file:
+Path: D:\digimon-re\out\strings.json
+Successfully exported to
+D:\digimon-re\out\strings.json

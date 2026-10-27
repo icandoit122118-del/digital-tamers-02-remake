@@ -1,0 +1,34 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+
+# Godot local cache
+godot/.godot/
+
+# Android Gradle build cache & local SDK path
+android/.gradle/
+android/.kotlin/
+android/local.properties
+android/build/
+android/app/build/
+
+# Original massive extracted raw binary / audio / raw dump (>800MB)
+game.droid
+ag_music.dat
+classes.dex
+*.ogg
+*.zip
+out/sounds/
+out/code/
+out/aseprite/
+# Keep out/data/, out/shots/, out/sprites/bg_HD/, out/sprites/spr_Items_HD/
+out/sprites/*
+!out/sprites/bg_HD/
+!out/sprites/spr_Items_HD/
+!out/sprites/spr_Icons/
+!out/sprites/spr_GameLogo/
+
+# Keep android/app/src/main/ source & data, ignore heavy duplicated sprite assets in git if needed
+android/app/src/main/assets/sprites/d*_*
+android/app/src/main/assets/sounds/
+tools/cli/
