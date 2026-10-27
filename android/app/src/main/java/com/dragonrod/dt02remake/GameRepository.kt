@@ -167,58 +167,63 @@ class GameRepository(private val context: Context) {
     var sanctuaryDir by mutableFloatStateOf(1f)
     var animTick by mutableIntStateOf(0)
 
-    // 1v1 Single-Match Auto-Chess Battle State
+    // Original Real-Time Action Combat + Auto-Battle State (acao 1..12)
     var btlAutoSkill by mutableStateOf(true)
     var btlSpeed2x by mutableStateOf(true)
-    var btlTactic by mutableStateOf("gamble")
+    var btlTactic by mutableStateOf("balanced")
     var btlFinished by mutableStateOf(false)
     var btlWin by mutableStateOf(true)
     var btlResultBanner by mutableStateOf("")
 
+    var pAcao by mutableIntStateOf(1)
     var pX by mutableFloatStateOf(124f)
     var pY by mutableFloatStateOf(216f)
     var pVx by mutableFloatStateOf(0f)
     var pVy by mutableFloatStateOf(0f)
     var pAct by mutableStateOf("idle")
     var pAnimTimer by mutableIntStateOf(0)
-    var pAiState by mutableStateOf("APPROACH")
+    var pAiState by mutableStateOf("IDLE (acao=1)")
     var pHp by mutableIntStateOf(2200)
     var pHpMax by mutableIntStateOf(2200)
     var pSp by mutableFloatStateOf(45f)
+    var pBlock by mutableFloatStateOf(100f)
+    var pCombo by mutableIntStateOf(0)
     var pDodges by mutableIntStateOf(0)
     var pParries by mutableIntStateOf(0)
     var jackpotCount by mutableIntStateOf(0)
     var shieldActive by mutableStateOf(false)
 
+    var eAcao by mutableIntStateOf(1)
     var eX by mutableFloatStateOf(414f)
     var eY by mutableFloatStateOf(216f)
     var eVx by mutableFloatStateOf(0f)
     var eVy by mutableFloatStateOf(0f)
     var eAct by mutableStateOf("idle")
     var eAnimTimer by mutableIntStateOf(0)
-    var eAiState by mutableStateOf("STALKING")
+    var eAiState by mutableStateOf("IDLE (acao=1)")
     var eHp by mutableIntStateOf(5200)
     var eHpMax by mutableIntStateOf(5200)
     var eSp by mutableFloatStateOf(30f)
+    var eCombo by mutableIntStateOf(0)
     var eAtk by mutableIntStateOf(680)
     var eDef by mutableIntStateOf(520)
     var eSpd by mutableIntStateOf(310)
     var eLuk by mutableIntStateOf(52)
 
-    var slotReels by mutableStateOf("7 · 7 · 7")
-    var slotTitle by mutableStateOf("LUCK OVERDRIVE")
-    var slotTimer by mutableFloatStateOf(2.5f)
+    var slotReels by mutableStateOf("AUTO BATTLE")
+    var slotTitle by mutableStateOf("ORIGINAL COMBAT")
+    var slotTimer by mutableFloatStateOf(0f)
     var feverTimer by mutableFloatStateOf(0f)
-    var lastDice by mutableIntStateOf(97)
-    var lastTier by mutableStateOf("★ 777 JACKPOT ★")
-    var lastMult by mutableDoubleStateOf(7.77)
-    var lastLog by mutableStateOf("[AI COMBAT] Autonomous Jump/Evade & Skill RNG Ready!")
+    var lastDice by mutableIntStateOf(0)
+    var lastTier by mutableStateOf("READY")
+    var lastMult by mutableDoubleStateOf(1.0)
+    var lastLog by mutableStateOf("[AUTO BATTLE] Original Real-Time Action Combat Ready!")
 
     val skills = mutableStateListOf(
-        SkillSlot("Nova Blast", "Ranged · 125% SP.ATK", 2.4f, 1.25f, 24f, 0.3f, "D100:84 → 4.0x SSR", 4.0f),
-        SkillSlot("Aerial Horn Dive", "Jump Strike · 155% ATK", 3.2f, 1.55f, 28f, 0.7f, "D100:68 → 2.2x CRIT", 2.2f),
-        SkillSlot("Miracle Guard", "Parry & Counter · LUK%", 4.2f, 1.20f, 25f, 1.2f, "COUNTER READY", 2.2f),
-        SkillSlot("Mega Burst", "Ultimate · 260% × RNG", 1.0f, 2.60f, 0f, 0.0f, "SP 100% AUTO FIRE", 7.77f)
+        SkillSlot("Melee Strike", "acao=7 · Physical ATK", 1.4f, 1.15f, 18f, 0.2f, "READY (ATK)", 1.0f),
+        SkillSlot("Ranged Sp.Atk", "acao=8 · Elemental SP.ATK", 2.0f, 1.25f, 22f, 0.4f, "READY (SP.ATK)", 1.0f),
+        SkillSlot("Guard / Jump", "acao=4/5 · Block & Evade", 2.8f, 1.00f, 15f, 0.6f, "BLOCK 100%", 1.0f),
+        SkillSlot("Special Ultimate", "acao=10 · SP 100% Finisher", 1.0f, 2.35f, 0f, 0.0f, "SP GAUGE AUTO", 2.0f)
     )
     val projectiles = mutableStateListOf<Projectile>()
     val popups = mutableStateListOf<FloatingPopup>()
@@ -456,13 +461,16 @@ class GameRepository(private val context: Context) {
         pHpMax = if (dataMode == "worst") 99999 else if (dataMode == "empty") 950 else hpMax
         pHp = pHpMax
         pSp = 45f
+        pBlock = 100f
+        pCombo = 0
+        pAcao = 1
         pX = 124f
         pY = 216f
         pVx = 0f
         pVy = 0f
         pAct = "idle"
         pAnimTimer = 0
-        pAiState = "APPROACH"
+        pAiState = "IDLE (acao=1)"
         pDodges = 0
         pParries = 0
         jackpotCount = 0
@@ -471,6 +479,8 @@ class GameRepository(private val context: Context) {
         eHpMax = (eEntry?.baseHp ?: 2400) + enemyLv * 52
         eHp = eHpMax
         eSp = 30f
+        eCombo = 0
+        eAcao = 1
         eAtk = (eEntry?.baseAtk ?: 320) + enemyLv * 4
         eDef = (eEntry?.baseDef ?: 260) + enemyLv * 3
         eSpd = (eEntry?.baseSpd ?: 240) + enemyLv * 2
@@ -481,7 +491,7 @@ class GameRepository(private val context: Context) {
         eVy = 0f
         eAct = "idle"
         eAnimTimer = 0
-        eAiState = "STALKING"
+        eAiState = "IDLE (acao=1)"
 
         btlFinished = false
         btlWin = true
@@ -489,9 +499,11 @@ class GameRepository(private val context: Context) {
         projectiles.clear()
         popups.clear()
         for (s in skills) {
-            s.cd = 0.25f
+            s.cd = 0.2f
         }
-        lastLog = "[AI COMBAT] ${pEntry?.name ?: "Partner"} vs ${eEntry?.name ?: "Boss"} ($battleZone) — 1v1 Single Match!"
+        lastTier = "READY"
+        lastMult = 1.0
+        lastLog = "[AUTO BATTLE] ${pEntry?.name ?: "Partner"} vs ${eEntry?.name ?: "Boss"} ($battleZone) — Original Combat!"
     }
 
     fun startStageBattle(bossId: Int, bossLv: Int, zone: String, bg: String) {
@@ -595,13 +607,15 @@ class GameRepository(private val context: Context) {
         val grav = 0.85f
 
         if (btlFinished) {
+            pAcao = if (btlWin) 12 else 11
+            eAcao = if (btlWin) 11 else 12
             pAct = if (btlWin) "win" else "lose"
             eAct = if (btlWin) "lose" else "win"
             tickProjectilesAndPopups(dt)
             return
         }
 
-        // Player Physics
+        // Player Physics (acao=4 Jump / Floor landing)
         pX = (pX + pVx * spdMult).coerceIn(58f, 464f)
         if (pY < groundY || pVy < 0f) {
             pVy += grav * spdMult
@@ -610,6 +624,7 @@ class GameRepository(private val context: Context) {
                 pY = groundY
                 pVy = 0f
                 if (pAnimTimer <= 0) {
+                    pAcao = 1
                     pVx = 0f
                     pAct = "idle"
                 }
@@ -625,135 +640,119 @@ class GameRepository(private val context: Context) {
                 eY = groundY
                 eVy = 0f
                 if (eAnimTimer <= 0) {
+                    eAcao = 1
                     eVx = 0f
                     eAct = "idle"
                 }
             }
         }
 
-        // Slot machine luck event
-        slotTimer -= dt
-        if (slotTimer <= 0f) {
-            slotTimer = 4.2f
-            val r = Random.nextInt(1, 101)
-            when {
-                r >= 78 -> {
-                    slotReels = "7 · 7 · 7"
-                    slotTitle = "JACKPOT FEVER (2x SPD & +25% CRIT)"
-                    feverTimer = 4.0f
-                    pSp = min(100f, pSp + 25f)
-                }
-                r >= 45 -> {
-                    slotReels = "⚡ · ⚡ · ⚡"
-                    slotTitle = "REFLEX SURGE (Jump Dodge +30%)"
-                    pHp = min(pHpMax, pHp + (pHpMax * 0.08f).roundToInt())
-                }
-                else -> {
-                    slotReels = "🎲 · 🎲 · 🎲"
-                    slotTitle = "CHAOS MULTIPLIER (0.5x ~ 7.77x)"
-                }
-            }
-        }
-        if (feverTimer > 0f) feverTimer = max(0f, feverTimer - dt)
-
-        // Skill cooldowns
-        val cdRate = (1f + spd / 520f) * (if (feverTimer > 0f) 1.8f else 1f)
+        // Block Gauge regeneration & Skill cooldowns
+        pBlock = min(100f, pBlock + dt * 14f)
+        val cdRate = 1f + spd / 560f
         for (sk in skills) {
             if (sk.cd > 0f) sk.cd = max(0f, sk.cd - dt * cdRate)
         }
 
-        // Projectile Jump-Evade Check (Player & Enemy)
+        // Original GML Incoming Projectile Check (distance_to_object(obj_Enemy_SPAtk) < 140)
         for (proj in projectiles) {
-            if (!proj.fromPlayer && pY >= groundY - 2f) {
+            if (!proj.fromPlayer && pY >= groundY - 2f && pAcao < 5) {
                 val dx = abs(proj.x - pX)
-                if (dx in 22f..105f) {
-                    val dodgeChance = (20 + (spd * 0.07f).toInt() + (luk * 0.35f).toInt() + if (btlTactic == "evasive") 24 else 0).coerceIn(15, 78)
-                    if (Random.nextInt(1, 101) <= dodgeChance) {
-                        pVy = -10.5f
-                        pVx = if (eX > pX) -2.6f else 2.6f
+                if (dx in 22f..115f) {
+                    val roll = Random.nextInt(0, 10)
+                    if (roll <= (if (btlTactic == "evasive") 3 else 2)) {
+                        pAcao = 4
+                        pVy = -10.2f
+                        pVx = if (eX > pX) -2.4f else 2.4f
                         pAct = "jump"
                         pAnimTimer = 14
                         pDodges += 1
-                        pAiState = "JUMP EVADE!"
-                        popups.add(FloatingPopup(pX, pY - 54f, "⚡ AI JUMP EVADE!", 0xFF38BDF8))
+                        pAiState = "JUMP (acao=4)"
+                        popups.add(FloatingPopup(pX, pY - 54f, "JUMP EVADE!", 0xFF00E5B0))
+                        break
+                    } else if (btlAutoSkill && pBlock >= 25f && roll <= (if (btlTactic == "evasive") 6 else 4)) {
+                        castPlayerSkill(2, if (eX >= pX) 1f else -1f)
                         break
                     }
                 }
-            } else if (proj.fromPlayer && eY >= groundY - 2f) {
+            } else if (proj.fromPlayer && eY >= groundY - 2f && eAcao < 5) {
                 val dx = abs(proj.x - eX)
-                if (dx in 22f..96f) {
-                    val eDodge = (14 + (eSpd * 0.05f).toInt() + (eLuk * 0.22f).toInt()).coerceIn(12, 55)
-                    if (Random.nextInt(1, 101) <= eDodge) {
-                        eVy = -9.8f
-                        eVx = if (pX < eX) 2.2f else -2.2f
-                        eAct = "jump"
-                        eAnimTimer = 14
-                        eAiState = "JUMP EVADE!"
-                        popups.add(FloatingPopup(eX, eY - 54f, "💨 ENEMY JUMP DODGE!", 0xFFF5C451))
-                        break
-                    }
+                if (dx in 22f..96f && Random.nextInt(0, 10) <= 1) {
+                    eAcao = 4
+                    eVy = -9.6f
+                    eVx = if (pX < eX) 2.2f else -2.2f
+                    eAct = "jump"
+                    eAnimTimer = 14
+                    eAiState = "JUMP (acao=4)"
+                    break
                 }
             }
         }
 
-        // Player Autonomous AI
+        // Player Original Real-Time Action AI (acao 1..10) + Auto-Battle
         if (pAnimTimer > 0) {
             pAnimTimer -= ceil(spdMult).toInt()
-        } else if (Random.nextFloat() < 0.28f) {
+            if (pAnimTimer <= 0 && pY >= groundY) {
+                pAcao = 1
+                pVx = 0f
+                pAct = "idle"
+            }
+        } else if (Random.nextFloat() < 0.34f) {
             val dist = abs(eX - pX)
             val dir = if (eX >= pX) 1f else -1f
-            if (btlAutoSkill) {
-                if (pSp >= 100f) {
-                    castPlayerSkill(3, dir)
-                    return
-                }
-                val readyIdx = (0..2).filter { skills[it].cd <= 0f }
-                if (readyIdx.isNotEmpty() && Random.nextInt(1, 101) <= 78) {
-                    castPlayerSkill(readyIdx.random(), dir)
-                    return
-                }
+            if (btlAutoSkill && pSp >= 100f) {
+                castPlayerSkill(3, dir)
+                return
             }
-            when {
-                dist > 175f -> {
-                    pVx = dir * 3.2f
-                    pAct = "walk"
-                    pAiState = "DASH IN"
+            if (dist >= 68f) {
+                pAcao = 2
+                pVx = dir * 3.2f
+                pAct = "walk"
+                pAiState = "WALK (acao=2)"
+                if (btlAutoSkill && skills[1].cd <= 0f && (dist > 105f || btlTactic == "ranged")) {
+                    castPlayerSkill(1, dir)
+                    return
                 }
-                dist < 82f -> {
-                    pVx = -dir * 2.8f
-                    if (pY >= groundY && Random.nextInt(1, 101) <= 45) pVy = -8.6f
+            } else {
+                if (btlAutoSkill && skills[0].cd <= 0f) {
+                    castPlayerSkill(0, dir)
+                    return
+                } else if (btlAutoSkill && skills[1].cd <= 0f) {
+                    castPlayerSkill(1, dir)
+                    return
+                } else if (pY >= groundY && Random.nextInt(1, 101) <= 22) {
+                    pAcao = 4
+                    pVy = -8.8f
+                    pVx = -dir * 2.4f
                     pAct = "jump"
-                    pAiState = "BACKSTEP"
-                }
-                else -> {
-                    pVx = dir * 1.6f
-                    pAct = "walk"
-                    pAiState = "FOOTSIES"
+                    pAnimTimer = 14
+                    pAiState = "JUMP (acao=4)"
                 }
             }
         }
 
-        // Enemy Autonomous AI
+        // Enemy Original Real-Time Action AI (acao 1..10)
         if (eAnimTimer > 0) {
             eAnimTimer -= ceil(spdMult).toInt()
-        } else if (Random.nextFloat() < 0.24f) {
+            if (eAnimTimer <= 0 && eY >= groundY) {
+                eAcao = 1
+                eVx = 0f
+                eAct = "idle"
+            }
+        } else if (Random.nextFloat() < 0.28f) {
             val dist = abs(pX - eX)
             val dir = if (pX < eX) -1f else 1f
-            if (Random.nextInt(1, 101) <= 48) {
-                // Enemy casts skill
-                val dice = Random.nextInt(1, 101)
-                val mult = when {
-                    dice >= 93 -> 3.5f
-                    dice >= 70 -> 1.8f
-                    dice <= 18 -> 0.55f
-                    else -> 1.05f
-                }
-                val tier = if (dice >= 93) "BOSS JACKPOT 3.5x" else if (dice >= 70) "BOSS CRIT 1.8x" else "ENEMY ATK"
-                val rawDmg = max(35, ((eAtk * 1.15f - def * 0.42f) * mult).roundToInt())
-                eAct = if (eSp >= 100f) "atkSP" else "atk01"
-                if (eSp >= 100f) eSp = 0f else eSp = min(100f, eSp + 25f)
+            if (Random.nextInt(1, 101) <= 46) {
+                val isUlt = eSp >= 100f
+                val isCrit = Random.nextInt(1, 15) == 1
+                val critMult = if (isCrit) 2f else 1f
+                val isMelee = dist < 72f && !isUlt
+                val rawDmg = max(enemyLv, (((eAtk * (if (isUlt) 1.85f else 1.18f) - def * 0.52f) / 1.8f) * critMult).roundToInt())
+                eAcao = if (isUlt) 10 else if (isMelee) 7 else 8
+                eAct = if (isUlt) "atkSP" else "atk01"
+                if (isUlt) eSp = 0f else eSp = min(100f, eSp + 22f)
                 eAnimTimer = 15
-                eAiState = "BOSS SKILL!"
+                eAiState = if (isUlt) "SPECIAL (acao=10)" else if (isMelee) "MELEE (acao=7)" else "SP.ATK (acao=8)"
                 projectiles.add(
                     Projectile(
                         fromPlayer = false,
@@ -761,71 +760,85 @@ class GameRepository(private val context: Context) {
                         y = eY - 26f,
                         vx = dir * 6.8f,
                         dmg = rawDmg,
-                        tier = tier,
-                        mult = mult,
+                        tier = if (isCrit) "CRIT 2x" else "ATK",
+                        mult = critMult,
                         colHex = 0xFFFF6B4A,
-                        isUlt = eAct == "atkSP"
+                        isUlt = isUlt
                     )
                 )
-            } else if (dist > 165f) {
-                eVx = dir * 2.6f
+            } else if (dist > 68f) {
+                eAcao = 2
+                eVx = dir * 2.8f
                 eAct = "walk"
-                eAiState = "PURSUING"
+                eAiState = "WALK (acao=2)"
             } else {
-                eVx = -dir * 2.0f
-                if (eY >= groundY && Random.nextInt(1, 101) <= 35) eVy = -8.2f
+                eAcao = 4
+                eVx = -dir * 2.2f
+                if (eY >= groundY && Random.nextInt(1, 101) <= 30) eVy = -8.2f
                 eAct = "jump"
-                eAiState = "REPOSITION"
+                eAiState = "JUMP (acao=4)"
             }
         }
 
         tickProjectilesAndPopups(dt)
     }
 
-    private fun castPlayerSkill(idx: Int, dir: Float) {
+    fun castPlayerSkill(idx: Int, dir: Float = if (eX >= pX) 1f else -1f) {
+        if (btlFinished || idx !in 0..3) return
         val sk = skills[idx]
         sk.cd = sk.cdMax
-        if (idx == 3) pSp = 0f else pSp = min(100f, pSp + sk.spGain)
 
-        val luckBonus = (luk * 0.24f).roundToInt() + if (btlTactic == "gamble") 10 else 0
-        val dice = (Random.nextInt(1, 101) + luckBonus).coerceIn(1, 100)
-        val (mult, tier, col) = when {
-            dice >= 88 -> {
-                jackpotCount += 1
-                Triple(7.77f, "★ 777 JACKPOT ★", 0xFFF5C451)
-            }
-            dice >= 70 -> Triple(4.00f, "SSR ULTRA CRIT", 0xFF00E5B0)
-            dice >= 46 -> Triple(2.20f, "LUCKY CRIT", 0xFF38BDF8)
-            dice <= 14 -> Triple(0.55f, "GRAZE MISS...", 0xFF9BB0C7)
-            else -> Triple(1.15f, "NORMAL HIT", 0xFFF0F6FC)
-        }
-
-        lastDice = dice
-        lastTier = tier
-        lastMult = mult.toDouble()
-        sk.lastRoll = "D100:$dice → ${mult}x ($tier)"
-        sk.lastMult = mult
+        // Original Critical Formula: CRITICAL = 2 (2.0x) or 1 (1.0x)
+        val focus = (spd / 30).coerceIn(1, 14)
+        val isCrit = Random.nextInt(1, (18 - focus).coerceAtLeast(3) + 1) == 1
+        val critMult = if (isCrit) 2.0f else 1.0f
 
         if (idx == 2) {
+            pAcao = 5
             shieldActive = true
             pAct = "block"
             pAnimTimer = 14
-            pAiState = "MIRACLE GUARD"
-            popups.add(FloatingPopup(pX, pY - 48f, "🛡️ MIRACLE PARRY READY!", 0xFF38BDF8))
-        } else if (idx == 1 && pY >= 214f) {
-            pVy = -9.5f
-            pVx = dir * 3.8f
-            pAct = "jump"
-            pAnimTimer = 16
-            pAiState = "AERIAL DIVE!"
-        } else {
-            pAct = if (idx == 3) "atkSP" else "atk01"
-            pAnimTimer = 15
-            pAiState = "SKILL: ${sk.name}"
+            pAiState = "GUARD (acao=5)"
+            lastTier = "GUARD (acao=5)"
+            lastMult = 1.0
+            sk.lastRoll = "BLOCK ${pBlock.roundToInt()}%"
+            popups.add(FloatingPopup(pX, pY - 48f, "GUARD READY!", 0xFF38BDF8))
+            lastLog = "[AUTO] Guard (acao=5) active — Block Gauge ${pBlock.roundToInt()}%"
+            return
         }
 
-        val statVal = if (idx == 0 || idx == 3) spAtk else atk
-        val dmg = max(45, ((statVal * sk.power - eDef * 0.35f) * mult).roundToInt())
+        if (idx == 3) {
+            pSp = 0f
+            pAcao = 10
+            pAct = "atkSP"
+            pAnimTimer = 18
+            pAiState = "SPECIAL (acao=10)"
+        } else if (idx == 0) {
+            pSp = min(100f, pSp + sk.spGain)
+            pAcao = 7
+            pVx = dir * 1.8f
+            pAct = "atk01"
+            pAnimTimer = 14
+            pAiState = "MELEE (acao=7)"
+        } else {
+            pSp = min(100f, pSp + sk.spGain)
+            pAcao = 8
+            pAct = "atk01"
+            pAnimTimer = 15
+            pAiState = "SP.ATK (acao=8)"
+        }
+
+        val statVal = if (idx == 1 || idx == 3) spAtk else atk
+        val baseDmg = max(partnerLv, ((statVal * sk.power - eDef * 0.50f) / 1.7f).roundToInt())
+        val dmg = (baseDmg * critMult).roundToInt()
+        val tier = if (idx == 3) "SPECIAL ULTIMATE!" else if (isCrit) "CRITICAL 2x!" else sk.name.uppercase()
+        val col = if (isCrit || idx == 3) 0xFFF5C451 else 0xFF00E5B0
+
+        lastTier = tier
+        lastMult = critMult.toDouble()
+        sk.lastRoll = "$dmg DMG${if (isCrit) " (CRIT!)" else ""}"
+        sk.lastMult = critMult
+
         projectiles.add(
             Projectile(
                 fromPlayer = true,
@@ -834,12 +847,12 @@ class GameRepository(private val context: Context) {
                 vx = dir * 7.6f,
                 dmg = dmg,
                 tier = tier,
-                mult = mult,
+                mult = critMult,
                 colHex = col,
                 isUlt = idx == 3
             )
         )
-        lastLog = "[AUTO] ${sk.name} → D100($dice) $tier [${mult}x] · $dmg DMG!"
+        lastLog = "[AUTO] ${sk.name} (acao=$pAcao) → $dmg DMG${if (isCrit) " [CRITICAL 2x!]" else ""}"
     }
 
     private fun tickProjectilesAndPopups(dt: Float) {
@@ -856,16 +869,22 @@ class GameRepository(private val context: Context) {
                 val dy = abs(p.y - (eY - 24f))
                 if (dx < 26f && dy < 32f) {
                     eHp = max(0, eHp - p.dmg)
+                    pCombo += 1
+                    eCombo = 0
+                    pSp = min(100f, pSp + 10f)
+                    eSp = min(100f, eSp + 12f)
+                    eAcao = 6
                     eAct = "dmg"
                     eAnimTimer = 10
-                    popups.add(FloatingPopup(eX, eY - 48f, "${p.tier} -${p.dmg}", p.colHex))
+                    val comboTxt = if (pCombo >= 2) " (${pCombo} HIT)" else ""
+                    popups.add(FloatingPopup(eX, eY - 48f, "-${p.dmg}$comboTxt", p.colHex))
                     toRemove.add(p)
                     if (eHp <= 0) {
                         btlFinished = true
                         btlWin = true
-                        val bonus = 3200 + jackpotCount * 1500
+                        val bonus = 2800 + enemyLv * 65
                         bits += bonus
-                        btlResultBanner = "🏆 VICTORY! (+$bonus BIT · Jackpots: $jackpotCount)"
+                        btlResultBanner = "🏆 VICTORY! (+$bonus BIT · Combo: $pCombo)"
                         lastLog = btlResultBanner
                     }
                 }
@@ -874,27 +893,33 @@ class GameRepository(private val context: Context) {
                 val dy = abs(p.y - (pY - 24f))
                 if (dx < 26f && dy < 32f) {
                     toRemove.add(p)
-                    val parry = shieldActive || Random.nextInt(1, 101) <= (12 + (luk * 0.28f).toInt()).coerceIn(12, 48)
-                    if (parry) {
+                    if (pAcao == 5 || shieldActive) {
                         shieldActive = false
+                        pBlock = max(0f, pBlock - 28f)
                         pParries += 1
-                        val cDmg = (atk * 2.4f).roundToInt()
-                        popups.add(FloatingPopup(pX, pY - 56f, "🛡️ PERFECT PARRY & 2.4x COUNTER!", 0xFF00E5B0))
+                        val blockedDmg = max(1, (p.dmg * 0.15f).roundToInt())
+                        pHp = max(0, pHp - blockedDmg)
+                        val cDmg = max(partnerLv, (atk * 1.35f - eDef * 0.4f).roundToInt())
+                        popups.add(FloatingPopup(pX, pY - 56f, "BLOCKED (-$blockedDmg) & COUNTER!", 0xFF38BDF8))
                         eHp = max(0, eHp - cDmg)
                         if (eHp <= 0) {
                             btlFinished = true
                             btlWin = true
-                            btlResultBanner = "🏆 VICTORY BY MIRACLE COUNTER!"
+                            btlResultBanner = "🏆 VICTORY BY GUARD COUNTER!"
                         }
                     } else {
                         pHp = max(0, pHp - p.dmg)
+                        pCombo = 0
+                        eCombo += 1
+                        pSp = min(100f, pSp + 12f)
+                        pAcao = 6
                         pAct = "dmg"
                         pAnimTimer = 10
                         popups.add(FloatingPopup(pX, pY - 48f, "-${p.dmg} (${p.tier})", 0xFFFF6B4A))
                         if (pHp <= 0) {
                             btlFinished = true
                             btlWin = false
-                            btlResultBanner = "💀 DEFEAT — Boss Overwhelmed Your Partner"
+                            btlResultBanner = "💀 DEFEAT — Partner Fainted in Battle"
                             lastLog = btlResultBanner
                         }
                     }
@@ -945,13 +970,13 @@ class GameRepository(private val context: Context) {
         val savedOk = saveGameState() && loadGameState()
         sb.append("SaveLoad[ok=$savedOk] | ")
 
-        // 6. 1v1 Single-Match Auto-Chess Battle simulation test
+        // 6. Original Real-Time Action Auto-Battle simulation test
         val stg = stageArenas[2]
         startStageBattle(stg.bossId, stg.lv, stg.zone, stg.bg)
         for (i in 0 until 60) {
             tickFrame()
         }
-        sb.append("Battle1v1[room=$currentRoom,zone=$battleZone,pHp=$pHp/$pHpMax,eHp=$eHp/$eHpMax,lastDice=$lastDice,tier=$lastTier]")
+        sb.append("BattleOrig[room=$currentRoom,zone=$battleZone,pHp=$pHp/$pHpMax,eHp=$eHp/$eHpMax,pAcao=$pAcao,combo=$pCombo,block=${pBlock.roundToInt()}%,tier=$lastTier]")
         return sb.toString()
     }
 }

@@ -1,14 +1,17 @@
 extends GMInstance
-## obj_Enemy_Battle — 663종 전체 적군 디지몬 동적 스프라이트 & 오토체스형 자율 기동·점프·스킬 AI
+## obj_Enemy_Battle — 원본 Digital Tamers 02 적군 디지몬 실시간 액션 AI (acao 1..12 상태머신)
 
 const GROUND_Y := 216.0
-const GRAV := 0.44
+const GRAV := 0.46
 
+var acao := 1
+var lado := -1.0
+var can_jump := true
 var vy := 0.0
 var vx := 0.0
 var _anim_timer := 0
-var _think_timer := 0.4
-var _atk_cd := 1.4
+var _think_timer := 0.32
+var _atk_cd := 1.2
 var _rng := RandomNumberGenerator.new()
 
 
@@ -18,8 +21,11 @@ func create() -> void:
 	y = GROUND_Y
 	vy = 0.0
 	vx = 0.0
+	acao = 1
+	lado = -1.0
+	can_jump = true
 	image_xscale = 1.0
-	image_speed = 0.22
+	image_speed = 0.24
 	_sync_sprite("idle")
 
 
@@ -29,6 +35,8 @@ func _sync_sprite(act: String) -> void:
 	var cand := prefix + act
 	if GM.sprites.has(cand):
 		sprite_index = cand
+	elif act == "atk02" and GM.sprites.has(prefix + "atk01"):
+		sprite_index = prefix + "atk01"
 	elif GM.sprites.has(prefix + "idle"):
 		sprite_index = prefix + "idle"
 	else:
@@ -52,133 +60,149 @@ func step() -> void:
 		if y < GROUND_Y:
 			vy += GRAV * spd_mult
 			y = minf(GROUND_Y, y + vy * spd_mult)
-		_sync_sprite("lose" if bool(b.get("win", true)) else "win")
+		acao = 11 if bool(b.get("win", true)) else 12
+		b["e_acao"] = acao
+		_sync_sprite("lose" if acao == 11 else "win")
 		queue_redraw()
 		return
 
-	x = clampf(x + vx * spd_mult, 68.0, 482.0)
+	x = clampf(x + vx * spd_mult, 64.0, 486.0)
 	if y < GROUND_Y or vy < 0.0:
 		vy += GRAV * spd_mult
 		y += vy * spd_mult
 		if y >= GROUND_Y:
 			y = GROUND_Y
 			vy = 0.0
+			can_jump = true
 			if _anim_timer <= 0:
+				acao = 1
 				vx = 0.0
 				_sync_sprite("idle")
 
 	var player := _player_inst()
 	if player != null and _anim_timer <= 0:
-		image_xscale = 1.0 if player.x <= x else -1.0
+		lado = -1.0 if player.x <= x else 1.0
+		image_xscale = -lado
 
 	_atk_cd = maxf(0.0, _atk_cd - dt)
 
 	if _anim_timer > 0:
 		_anim_timer -= int(ceil(spd_mult))
 		if _anim_timer <= 0 and y >= GROUND_Y:
+			acao = 1
 			vx = 0.0
 			_sync_sprite("idle")
 	elif player != null:
 		_think_timer -= dt
 		if _think_timer <= 0.0:
-			_think_timer = 0.26
-			_run_enemy_autochess_ai(b, player)
+			_think_timer = 0.24
+			_run_enemy_original_ai(b, player)
 
+	b["e_acao"] = acao
 	queue_redraw()
 
 
 func try_jump_evade() -> void:
 	var b: Dictionary = GM.battle
-	if y < GROUND_Y - 6.0 or bool(b.get("finished", false)):
+	if not can_jump or y < GROUND_Y - 4.0 or bool(b.get("finished", false)):
 		return
-	var evade_chance: int = clampi(14 + int(float(b["e_spd"]) * 0.04 + float(b["e_luk"]) * 0.25), 14, 48)
-	if _rng.randi_range(1, 100) <= evade_chance:
-		vy = -8.0
-		vx = 1.8
-		_anim_timer = 22
+	# 원본 적군 탄환 감지 점프 (`z = floor(random(10)); if (z == 0 && CanJump) acao = 4`)
+	if _rng.randi_range(0, 9) <= 1:
+		can_jump = false
+		acao = 4
+		vy = -7.8
+		vx = -2.0 * lado
+		_anim_timer = 20
 		_sync_sprite("jump")
-		b["e_ai_state"] = "JUMP EVADE!"
-		var player := _player_inst()
-		if player != null and player.has_method("_spawn_popup"):
-			player.call("_spawn_popup", x, y - 52.0, "💨 BOSS JUMP DODGE!", Color("#F5C451"), 1.15)
+		b["e_ai_state"] = "JUMP (acao=4)"
 
 
-func _run_enemy_autochess_ai(b: Dictionary, player: GMInstance) -> void:
+func _run_enemy_original_ai(b: Dictionary, player: GMInstance) -> void:
 	var dist: float = absf(player.x - x)
-	var dir: float = -1.0 if player.x <= x else 1.0
-	var move_spd: float = clampf(float(b["e_spd"]) / 120.0, 1.6, 3.2)
+	var move_spd: float = clampf(float(b["e_spd"]) / 105.0, 1.8, 3.4)
 
 	if _atk_cd <= 0.0:
-		_atk_cd = 2.1
+		_atk_cd = 1.65
 		var is_ult: bool = float(b["e_sp"]) >= 100.0
 		if is_ult:
 			b["e_sp"] = 0.0
 		else:
-			b["e_sp"] = minf(100.0, float(b["e_sp"]) + 24.0)
+			b["e_sp"] = minf(100.0, float(b["e_sp"]) + 22.0)
 
-		var roll: int = _rng.randi_range(1, 100) + int(float(b["e_luk"]) * 0.2)
-		var mult := 1.0
-		var tier := "BOSS ATK 1.0x"
-		if roll >= 92:
-			mult = 3.2
-			tier = "💀 BOSS JACKPOT 3.2x!"
-		elif roll >= 68:
-			mult = 1.8
-			tier = "BOSS CRIT 1.8x"
-		elif roll <= 15:
-			mult = 0.55
-			tier = "GRAZE 0.55x"
-
-		var raw_dmg: float = maxf(35.0, (float(b["e_atk"]) * (1.55 if is_ult else 1.15) * mult) - float(b["p_def"]) * 0.38)
-		var dmg: int = maxi(12, int(round(raw_dmg)))
+		var is_crit: bool = (_rng.randi_range(1, 14) == 1)
+		var crit_mult: int = 2 if is_crit else 1
+		var e_lv: int = int(b["e_lv"])
+		var is_melee: bool = (dist < 68.0 and not is_ult)
+		var raw_dmg: int = maxi(
+			e_lv,
+			int(floor((float(b["e_atk"]) * (1.85 if is_ult else (1.15 if is_melee else 1.22)) - float(b["p_def"]) * 0.52) / 1.8))
+		) * crit_mult
 
 		image_index = 0.0
 		if is_ult:
-			vy = -5.2
-			vx = dir * 2.2
+			acao = 10
+			vy = -4.2
+			vx = 1.6 * lado
 			_sync_sprite("atkSP")
 			_anim_timer = 28
-			b["e_ai_state"] = "ULTIMATE BURST!"
-		elif dist < 170.0 and _rng.randi_range(1, 100) <= 45:
-			vy = -7.2
-			vx = dir * 4.2
-			_sync_sprite("jump")
-			_anim_timer = 24
-			b["e_ai_state"] = "JUMP SLAM!"
-		else:
-			vx = 0.0
+			b["e_ai_state"] = "SPECIAL (acao=10)"
+		elif is_melee:
+			acao = 7
+			vx = 1.8 * lado
 			_sync_sprite("atk01")
-			_anim_timer = 22
-			b["e_ai_state"] = "SKILL SHOT"
+			_anim_timer = 18
+			b["e_ai_state"] = "MELEE (acao=7)"
+		else:
+			acao = 8
+			vx = 0.0
+			_sync_sprite("atk02")
+			_anim_timer = 20
+			b["e_ai_state"] = "SP.ATK (acao=8)"
 
 		if player.has_method("spawn_projectile"):
-			player.call("spawn_projectile", false, x + dir * 24.0, y - 26.0, dir * 6.2, dmg, tier, mult, Color("#FF6B4A"), is_ult)
+			player.call(
+				"spawn_projectile",
+				false,
+				x + lado * 24.0,
+				y - 26.0,
+				lado * (7.2 if is_melee else 6.4),
+				raw_dmg,
+				"CRIT 2x" if is_crit else ("SPECIAL" if is_ult else "ATK"),
+				float(crit_mult),
+				Color("#FF6B4A"),
+				is_ult,
+				is_melee
+			)
 		return
 
-	if dist > 175.0:
-		vx = dir * move_spd
+	if dist > 64.0:
+		acao = 2
+		vx = move_spd * lado
 		_sync_sprite("walk")
-		b["e_ai_state"] = "STALKING"
-	elif dist < 78.0:
-		vx = -dir * move_spd
-		if _rng.randi_range(1, 100) <= 35 and y >= GROUND_Y:
-			vy = -6.5
-			_sync_sprite("jump")
-			b["e_ai_state"] = "LEAP BACK"
-		else:
-			_sync_sprite("walk")
-			b["e_ai_state"] = "RETREAT"
+		b["e_ai_state"] = "WALK (acao=2)"
 	else:
-		vx = dir * (move_spd * 0.45) if _rng.randi_range(0, 1) == 0 else -dir * (move_spd * 0.45)
-		_sync_sprite("walk")
-		b["e_ai_state"] = "SPACING"
+		if can_jump and _rng.randi_range(1, 100) <= 18:
+			can_jump = false
+			acao = 4
+			vy = -7.2
+			vx = -2.4 * lado
+			_sync_sprite("jump")
+			_anim_timer = 18
+			b["e_ai_state"] = "JUMP (acao=4)"
+		else:
+			acao = 1
+			vx = 0.0
+			_sync_sprite("idle")
+			b["e_ai_state"] = "IDLE (acao=1)"
 
 
 func on_hit_knockback(push_dir: float) -> void:
+	acao = 6
 	image_index = 0.0
 	_sync_sprite("dmg")
-	_anim_timer = 14
+	_anim_timer = 12
 	vx = push_dir * 2.2
+	GM.battle["e_ai_state"] = "HIT (acao=6)"
 
 
 func draw() -> void:

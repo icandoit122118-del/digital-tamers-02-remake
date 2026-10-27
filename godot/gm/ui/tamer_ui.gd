@@ -350,7 +350,7 @@ func _build_main_menu() -> void:
 	vbox.add_child(logo_wrap)
 
 	var subtitle := _make_label(
-		_tr("Stat-Based × RNG Auto-Chess Battle RPG", "RPG Auto-Battle Tático × Sorte (RNG)"),
+		_tr("Real-Time Action Auto-Battle RPG", "RPG de Ação em Tempo Real (Auto-Battle)"),
 		13, COL_INK_SEC
 	)
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -364,7 +364,7 @@ func _build_main_menu() -> void:
 	)
 	vbox.add_child(btn_sanctuary)
 
-	var btn_battle := _make_button(_tr("1v1 Auto-Battle Arena (Jump & RNG)", "Arena Auto-Battle 1v1 (RNG)"), "battle", 360, 50)
+	var btn_battle := _make_button(_tr("1v1 Auto-Battle Arena (Original)", "Arena Auto-Battle 1v1 (Original)"), "battle", 360, 50)
 	btn_battle.pressed.connect(func():
 		GM.play_sound_fx("snd_Click06")
 		GM.room_transition(5, "room_Battle")
@@ -759,7 +759,7 @@ func _build_battle_hud() -> void:
 	_btl_p_sp_bar.add_theme_stylebox_override("fill", _box(COL_GOLD, COL_GOLD, 3, 0, 0, 0))
 	p_col.add_child(_btl_p_sp_bar)
 
-	# 2) 상단 중앙: 전투 운빨 슬롯 & D100 주사위 전광판 (1v1 Single Match)
+	# 2) 상단 중앙: 원본 실시간 전투 전광판 (Stage · Combo · Block Gauge · Combat Log)
 	var c_card := PanelContainer.new()
 	c_card.position = Vector2(372, 10)
 	c_card.custom_minimum_size = Vector2(332, 108)
@@ -770,15 +770,15 @@ func _build_battle_hud() -> void:
 	c_col.add_theme_constant_override("separation", 3)
 	c_card.add_child(c_col)
 
-	var c_head := _make_label("1v1 AUTO-CHESS  ·  STATS × LUCK RNG", 11, COL_INK_SEC)
+	var c_head := _make_label("REAL-TIME AUTO BATTLE  ·  " + str(GM.g.get("battleZone", "ARENA")).to_upper(), 11, COL_INK_SEC)
 	c_head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	c_col.add_child(c_head)
 
-	_btl_slot_lbl = _make_label("🎰 [%s] %s" % [str(b["slot_reels"]), str(b["slot_title"])], 14, COL_GOLD, true)
+	_btl_slot_lbl = _make_label("⚔️ COMBO: %d HIT  |  🛡️ BLOCK: %.0f%%" % [int(b.get("p_combo", 0)), float(b.get("p_block", 100.0))], 14, COL_GOLD, true)
 	_btl_slot_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	c_col.add_child(_btl_slot_lbl)
 
-	_btl_dice_lbl = _make_label("🎲 D100: %d → %s (%.2fx)" % [int(b["last_dice"]), str(b["last_tier"]), float(b["last_mult"])], 13, COL_ACCENT, true)
+	_btl_dice_lbl = _make_label("ACTION: %s  (Dodges: %d · Blocks: %d)" % [str(b.get("last_tier", "READY")), int(b.get("p_dodge_count", 0)), int(b.get("p_parry_count", 0))], 12, COL_ACCENT, true)
 	_btl_dice_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	c_col.add_child(_btl_dice_lbl)
 
@@ -938,10 +938,10 @@ func _build_battle_hud() -> void:
 
 	var row2 := HBoxContainer.new()
 	row2.add_theme_constant_override("separation", 6)
-	var tactic: String = str(b.get("ai_tactic", "gamble"))
+	var tactic: String = str(b.get("ai_tactic", "balanced"))
 	var btn_tac := _make_button("AI: " + tactic.to_upper(), "gold", 106, 42)
 	btn_tac.pressed.connect(func():
-		var order := ["gamble", "evasive", "balanced"]
+		var order := ["balanced", "evasive", "ranged"]
 		var next_i := (order.find(tactic) + 1) % order.size()
 		GM.battle["ai_tactic"] = order[next_i]
 		GM.play_sound_fx("snd_Click06")
@@ -973,18 +973,18 @@ func _sync_battle_hud_live() -> void:
 	if is_instance_valid(_btl_p_hp_bar):
 		_btl_p_hp_bar.max_value = maxi(1, int(b["p_hp_max"]))
 		_btl_p_hp_bar.value = int(b["p_hp"])
-		_btl_p_hp_lbl.text = "HP %d / %d  (Dodges: %d · Parries: %d)" % [int(b["p_hp"]), int(b["p_hp_max"]), int(b["p_dodge_count"]), int(b["p_parry_count"])]
+		_btl_p_hp_lbl.text = "HP %d / %d  (SP: %.0f%%)" % [int(b["p_hp"]), int(b["p_hp_max"]), float(b["p_sp"])]
 		_btl_p_sp_bar.value = float(b["p_sp"])
 		_btl_p_ai_lbl.text = "AI: " + str(b["p_ai_state"])
 	if is_instance_valid(_btl_e_hp_bar):
 		_btl_e_hp_bar.max_value = maxi(1, int(b["e_hp_max"]))
 		_btl_e_hp_bar.value = int(b["e_hp"])
-		_btl_e_hp_lbl.text = "HP %d / %d" % [int(b["e_hp"]), int(b["e_hp_max"])]
+		_btl_e_hp_lbl.text = "HP %d / %d  (SP: %.0f%%)" % [int(b["e_hp"]), int(b["e_hp_max"]), float(b["e_sp"])]
 		_btl_e_sp_bar.value = float(b["e_sp"])
 		_btl_e_ai_lbl.text = "AI: " + str(b["e_ai_state"])
 	if is_instance_valid(_btl_slot_lbl):
-		_btl_slot_lbl.text = "🎰 [%s] %s" % [str(b["slot_reels"]), str(b["slot_title"])]
-		_btl_dice_lbl.text = "🎲 D100: %d → %s (%.2fx) · Jackpots: %d" % [int(b["last_dice"]), str(b["last_tier"]), float(b["last_mult"]), int(b["jackpot_count"])]
+		_btl_slot_lbl.text = "⚔️ COMBO: %d HIT  |  🛡️ BLOCK: %.0f%%" % [int(b.get("p_combo", 0)), float(b.get("p_block", 100.0))]
+		_btl_dice_lbl.text = "ACTION: %s  (Dodges: %d · Blocks: %d)" % [str(b.get("last_tier", "READY")), int(b.get("p_dodge_count", 0)), int(b.get("p_parry_count", 0))]
 		_btl_log_lbl.text = str(b["last_log"])
 	if is_instance_valid(_btl_result_card):
 		_btl_result_card.visible = bool(b.get("finished", false))

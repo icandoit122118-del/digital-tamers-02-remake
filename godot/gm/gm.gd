@@ -194,7 +194,7 @@ func init_battle_state() -> void:
 	var e_spd: int = int(e_entry.get("base_spd", 240)) + e_lv
 	var e_luk: int = int(e_entry.get("base_luk", 38))
 
-	var prev_tactic: String = str(battle.get("ai_tactic", "gamble"))
+	var prev_tactic: String = str(battle.get("ai_tactic", "balanced"))
 
 	battle = {
 		"bonus_bits": 0,
@@ -211,12 +211,15 @@ func init_battle_state() -> void:
 		"p_hp": p_hp_max,
 		"p_hp_max": p_hp_max,
 		"p_sp": 45.0,
+		"p_block": 100.0,
+		"p_combo": 0,
+		"p_acao": 1,
 		"p_atk": p_atk,
 		"p_def": p_def,
 		"p_sp_atk": p_sp_atk,
 		"p_spd": p_spd,
 		"p_luk": p_luk,
-		"p_ai_state": "APPROACH",
+		"p_ai_state": "IDLE (acao=1)",
 		"p_dodge_count": 0,
 		"p_parry_count": 0,
 		"jackpot_count": 0,
@@ -228,25 +231,27 @@ func init_battle_state() -> void:
 		"e_hp": e_hp_max,
 		"e_hp_max": e_hp_max,
 		"e_sp": 30.0,
+		"e_combo": 0,
+		"e_acao": 1,
 		"e_atk": e_atk,
 		"e_def": e_def,
 		"e_spd": e_spd,
 		"e_luk": e_luk,
-		"e_ai_state": "APPROACH",
-		"slot_timer": 2.0,
+		"e_ai_state": "IDLE (acao=1)",
+		"slot_timer": 0.0,
 		"fever_timer": 0.0,
-		"slot_reels": "7 · 7 · 7",
-		"slot_title": "LUCK OVERDRIVE",
-		"slot_desc": "Stats + AI Jump/Evade/Skill RNG Active",
-		"last_dice": 97,
-		"last_tier": "★ 777 JACKPOT ★",
-		"last_mult": 7.77,
-		"last_log": "[AI COMBAT] %s vs %s (%s) — Autonomous Jump/Evade & RNG Active!" % [p_name, e_name, str(g.get("battleZone", "Arena"))],
+		"slot_reels": "AUTO BATTLE",
+		"slot_title": "ORIGINAL COMBAT ENGINE",
+		"slot_desc": "Authentic acao State Machine + Auto-Battle",
+		"last_dice": 0,
+		"last_tier": "READY",
+		"last_mult": 1.0,
+		"last_log": "[AUTO BATTLE] %s vs %s (%s) — Original Real-Time Combat!" % [p_name, e_name, str(g.get("battleZone", "Arena"))],
 		"skills": [
-			{"name": "Nova Blast", "tag": "Ranged · 125% SP.ATK", "cd": 0.3, "cd_max": 2.4, "power": 1.25, "sp_gain": 24.0, "last_roll": "D100:84 → 4.0x SSR", "last_mult": 4.0},
-			{"name": "Aerial Horn Dive", "tag": "Jump Strike · 155% ATK", "cd": 0.7, "cd_max": 3.2, "power": 1.55, "sp_gain": 28.0, "last_roll": "D100:68 → 2.2x CRIT", "last_mult": 2.2},
-			{"name": "Miracle Guard", "tag": "Parry & Counter · LUK%", "cd": 1.2, "cd_max": 4.2, "power": 1.20, "sp_gain": 25.0, "last_roll": "COUNTER READY", "last_mult": 2.2},
-			{"name": "Mega Burst", "tag": "Ultimate · 260% × RNG", "cd": 0.0, "cd_max": 1.0, "power": 2.60, "sp_gain": 0.0, "last_roll": "SP 100% AUTO FIRE", "last_mult": 7.77},
+			{"name": "Melee Strike", "tag": "acao=7 · Physical ATK", "cd": 0.2, "cd_max": 1.4, "power": 1.15, "sp_gain": 18.0, "last_roll": "READY (ATK)", "last_mult": 1.0},
+			{"name": "Ranged Sp.Atk", "tag": "acao=8 · Elemental SP.ATK", "cd": 0.4, "cd_max": 2.0, "power": 1.25, "sp_gain": 22.0, "last_roll": "READY (SP.ATK)", "last_mult": 1.0},
+			{"name": "Guard / Jump", "tag": "acao=4/5 · Block & Evade", "cd": 0.6, "cd_max": 2.8, "power": 1.00, "sp_gain": 15.0, "last_roll": "BLOCK 100%", "last_mult": 1.0},
+			{"name": "Special Ultimate", "tag": "acao=10 · SP 100% Finisher", "cd": 0.0, "cd_max": 1.0, "power": 2.35, "sp_gain": 0.0, "last_roll": "SP GAUGE AUTO", "last_mult": 2.0},
 		]
 	}
 

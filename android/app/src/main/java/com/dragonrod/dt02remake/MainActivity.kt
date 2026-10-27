@@ -330,7 +330,7 @@ fun MainMenuScreen(repo: GameRepository) {
                 TamerButton("Continue Sanctuary", "primary", Modifier.fillMaxWidth().height(42.dp)) {
                     repo.currentRoom = "room_MainRoom"
                 }
-                TamerButton("1v1 Auto-Chess Battle", "battle", Modifier.fillMaxWidth().height(42.dp)) {
+                TamerButton("1v1 Auto-Battle Arena", "battle", Modifier.fillMaxWidth().height(42.dp)) {
                     repo.initBattleState()
                     repo.currentRoom = "room_Battle"
                 }
@@ -508,12 +508,12 @@ fun BattleHudScreen(repo: GameRepository) {
                 }
             }
 
-            // Center 1v1 Auto-Chess RNG Board
+            // Center Original Real-Time Action Combat Board
             Surface(modifier = Modifier.weight(1f).height(88.dp), color = ColBgHud, shape = RoundedCornerShape(10.dp), border = BorderStroke(1.dp, ColGold)) {
                 Column(modifier = Modifier.padding(6.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("1v1 AUTO-CHESS · ${repo.battleZone.uppercase()}", color = ColInkSec, fontSize = 10.sp, maxLines = 1)
-                    Text("🎰 [${repo.slotReels}] ${repo.slotTitle}", color = ColGold, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1)
-                    Text("🎲 D100: ${repo.lastDice} → ${repo.lastTier} (${repo.lastMult}x)", color = ColAccent, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                    Text("REAL-TIME AUTO BATTLE · ${repo.battleZone.uppercase()}", color = ColInkSec, fontSize = 10.sp, maxLines = 1)
+                    Text("⚔️ COMBO: ${repo.pCombo} HIT  |  🛡️ BLOCK: ${repo.pBlock.roundToInt()}%", color = ColGold, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                    Text("ACTION: ${repo.lastTier} (Dodges:${repo.pDodges} · Blocks:${repo.pParries})", color = ColAccent, fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1)
                     Text(repo.lastLog, color = ColInk, fontSize = 9.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
@@ -584,13 +584,15 @@ fun BattleHudScreen(repo: GameRepository) {
             Row(modifier = Modifier.padding(6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 repo.skills.forEachIndexed { idx, sk ->
                     Surface(
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        modifier = Modifier.weight(1f).fillMaxHeight().clickable {
+                            repo.castPlayerSkill(idx)
+                        },
                         color = ColSurface,
                         shape = RoundedCornerShape(8.dp),
                         border = BorderStroke(1.dp, if (idx == 3) ColGold else ColBorder)
                     ) {
                         Column(modifier = Modifier.padding(6.dp), verticalArrangement = Arrangement.SpaceBetween) {
-                            Text("[AUTO] ${sk.name}", color = if (idx == 3) ColGold else ColInk, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                            Text("${if (repo.btlAutoSkill) "[AUTO] " else ""}${sk.name}", color = if (idx == 3) ColGold else ColInk, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1)
                             Text(sk.tag, color = ColInkSec, fontSize = 9.sp, maxLines = 1)
                             Text(sk.lastRoll, color = ColAccent, fontSize = 9.sp, maxLines = 1)
                             val prog = if (idx == 3) (repo.pSp / 100f) else (1f - (sk.cd / sk.cdMax)).coerceIn(0f, 1f)
@@ -622,7 +624,7 @@ fun BattleHudScreen(repo: GameRepository) {
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.weight(1f).fillMaxWidth()) {
                         TamerButton("AI: ${repo.btlTactic.uppercase()}", "gold", Modifier.weight(1.2f).fillMaxHeight()) {
-                            val order = listOf("gamble", "evasive", "balanced")
+                            val order = listOf("balanced", "evasive", "ranged")
                             repo.btlTactic = order[(order.indexOf(repo.btlTactic) + 1) % order.size]
                         }
                         TamerButton("Rematch", "battle", Modifier.weight(1f).fillMaxHeight()) {
