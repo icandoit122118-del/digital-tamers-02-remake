@@ -417,17 +417,46 @@ func _apply_hit(b: Dictionary, from_p: bool, target: GMInstance, p: Dictionary) 
 func _finish_single_match(b: Dictionary, is_win: bool) -> void:
 	b["finished"] = true
 	b["win"] = is_win
+	var e_lv: int = int(b["e_lv"])
+	var p_lv: int = int(b["p_lv"])
+	var ini_atr_mod: float = float(b.get("e_atr_mod", 1.0))
+	GM.g["totalBattles"] = int(GM.g.get("totalBattles", 20)) + 1
+
 	if is_win:
 		acao = 12
-		b["bonus_bits"] = 2800 + int(b["e_lv"]) * 65
-		GM.g["bits"] = int(GM.g.get("bits", 24500)) + int(b["bonus_bits"])
-		b["result_banner"] = "🏆 VICTORY! (+%d BIT · Max Combo: %d)" % [int(b["bonus_bits"]), int(b.get("p_combo", 1))]
-		b["last_log"] = "🏆 BATTLE WON: %s defeated %s! (+%d BIT)" % [str(b["p_name"]), str(b["e_name"]), int(b["bonus_bits"])]
+		# 원작 gml_Object_obj_Win_Lose_HUD_Create_0.gml 보상 정산 공식
+		var won_bits: int = maxi(50, int(floor(float(e_lv) * 50.0 * ini_atr_mod * 2.0)))
+		var given_xp: int = maxi(15, int(floor(float(e_lv) * 15.0 + float(e_lv - p_lv) * 1.6 + 12.0)))
+		var tamer_xp_gain: int = maxi(5, int(floor(float(given_xp) / 4.0)))
+		b["bonus_bits"] = won_bits
+		b["given_xp"] = given_xp
+		b["tamer_xp_gain"] = tamer_xp_gain
+		GM.g["bits"] = int(GM.g.get("bits", 24500)) + won_bits
+		GM.g["wins"] = int(GM.g.get("wins", 18)) + 1
+		GM.g["friendship"] = minf(100.0, float(GM.g.get("friendship", 75.0)) + 1.0)
+		GM.g["hunger"] = maxi(0, int(GM.g.get("hunger", 80)) - 6)
+		GM.g["tamerXp"] = int(GM.g.get("tamerXp", 420)) + tamer_xp_gain
+		if int(GM.g["tamerXp"]) >= 500:
+			GM.g["tamerXp"] = int(GM.g["tamerXp"]) - 500
+			GM.g["tamerLv"] = int(GM.g.get("tamerLv", 12)) + 1
+			GM.g["tamerSp"] = int(GM.g.get("tamerSp", 5)) + 1
+		if str(GM.g.get("battleMode", "world")) == "infinity":
+			GM.g["infinityFloor"] = int(GM.g.get("infinityFloor", 1)) + 1
+		elif str(GM.g.get("battleMode", "world")) == "challenge":
+			GM.g["challengeRank"] = int(GM.g.get("challengeRank", 1)) + 1
+		b["result_banner"] = "🏆 VICTORY! (+%d BIT · +%d XP · +%d Tamer XP)" % [won_bits, given_xp, tamer_xp_gain]
+		b["last_log"] = "🏆 WIN: %s defeated %s! (+%d BIT, +%d XP, W:%d/L:%d)" % [str(b["p_name"]), str(b["e_name"]), won_bits, given_xp, int(GM.g["wins"]), int(GM.g.get("losses", 2))]
 		_spawn_popup(269.0, 104.0, b["result_banner"], Color("#00E5B0"), 1.4)
 	else:
 		acao = 11
-		b["result_banner"] = "💀 DEFEAT — %s Fainted in Battle" % str(b["p_name"])
-		b["last_log"] = "💀 BATTLE LOST: Train stats or Digivolve in Sanctuary!"
+		var won_bits: int = p_lv * 7
+		var given_xp: int = p_lv * 3
+		GM.g["bits"] = int(GM.g.get("bits", 24500)) + won_bits
+		GM.g["losses"] = int(GM.g.get("losses", 2)) + 1
+		GM.g["friendship"] = maxf(0.0, float(GM.g.get("friendship", 75.0)) - 1.0)
+		GM.g["injury"] = mini(5, int(GM.g.get("injury", 0)) + 1)
+		b["result_banner"] = "💀 DEFEAT (+%d BIT · +%d XP · Injury +1)" % [won_bits, given_xp]
+		b["last_log"] = "💀 DEFEAT: Treat injury (Bandage) or train stats in Sanctuary!"
 		_spawn_popup(269.0, 104.0, b["result_banner"], Color("#FF6B4A"), 1.4)
 
 

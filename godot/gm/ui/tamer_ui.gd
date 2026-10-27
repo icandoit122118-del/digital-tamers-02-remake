@@ -582,7 +582,17 @@ func _build_sanctuary_hud() -> void:
 	top_line.add_child(lv_lbl)
 	info_col.add_child(top_line)
 
-	var stage_lbl := _make_label("%s   ·   %s" % [str(d["stage"]), str(d["status_note"])], 11, COL_INK_SEC, true)
+	var stage_lbl := _make_label(
+		"%s  ·  Hunger %d%%  ·  Friend %.0f%%  ·  Injury %d  ·  W:%d / L:%d" % [
+			str(d["stage"]),
+			int(GM.g.get("hunger", 82)),
+			float(GM.g.get("friendship", 75.0)),
+			int(GM.g.get("injury", 0)),
+			int(GM.g.get("wins", 18)),
+			int(GM.g.get("losses", 2))
+		],
+		11, COL_INK_SEC, true
+	)
 	stage_lbl.custom_minimum_size = Vector2(400, 16)
 	info_col.add_child(stage_lbl)
 
@@ -592,6 +602,36 @@ func _build_sanctuary_hud() -> void:
 	bars_row.add_child(_make_stat_bar("EN", int(d["en"]), int(d["en_max"]), COL_GOLD))
 	bars_row.add_child(_make_stat_bar("XP", int(d["xp"]), int(d["xp_max"]), COL_FOCUS))
 	info_col.add_child(bars_row)
+
+	# 원작 생추어리 브이펫 케어 바 (obj_FoodBar, obj_Vitamins, obj_Clean, obj_Bandage, obj_Sleep)
+	var care_bar := PanelContainer.new()
+	care_bar.position = Vector2(16, 124)
+	care_bar.custom_minimum_size = Vector2(540, 52)
+	care_bar.add_theme_stylebox_override("panel", _box(COL_BG_HUD, COL_ACCENT, 12, 1, 10, 6))
+	_root_layer.add_child(care_bar)
+
+	var chbox := HBoxContainer.new()
+	chbox.add_theme_constant_override("separation", 8)
+	care_bar.add_child(chbox)
+
+	var care_items := [
+		{"id": "food", "label": "🍖 Feed Meat", "kind": "primary"},
+		{"id": "vitamin", "label": "💊 Vitamin (+EN)", "kind": "gold"},
+		{"id": "clean", "label": "🧹 Clean", "kind": "secondary"},
+		{"id": "bandage", "label": "🩹 Bandage", "kind": "secondary"},
+		{"id": "sleep", "label": "💤 Sleep", "kind": "secondary"},
+	]
+	for ci in care_items:
+		var cb := _make_button(str(ci["label"]), str(ci["kind"]), 96, 36)
+		cb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var cid: String = str(ci["id"])
+		cb.pressed.connect(func():
+			var msg: String = GM.care_action(cid)
+			GM.play_sound_fx("snd_Click06")
+			rebuild_for_room(_current_room)
+			show_toast(msg)
+		)
+		chbox.add_child(cb)
 
 	var util_card := PanelContainer.new()
 	util_card.position = Vector2(572, 12)
@@ -1199,8 +1239,8 @@ func _build_training_deck(d: Dictionary) -> void:
 	lvbox.add_theme_constant_override("separation", 12)
 	left_card.add_child(lvbox)
 
-	lvbox.add_child(_make_label(_tr("Stat × RNG Gamble Training Protocol", "Protocolo de Treino (Status × Sorte)"), 18, COL_INK))
-	lvbox.add_child(_make_label(_tr("Base stats grow every drill, multiplied by D100 Luck Roll (0.5x ~ 7.77x Jackpot!).", "Atributos sobem com multiplicador de sorte D100 (0.5x ~ 7.77x!)."), 12, COL_INK_SEC))
+	lvbox.add_child(_make_label(_tr("Original Gym Training Protocol (obj_Training_CTRL)", "Protocolo de Treino Original (Gym)"), 18, COL_INK))
+	lvbox.add_child(_make_label(_tr("Consumes Energy (EN) to permanently train HP, ATK, DEF, SP.ATK, SP.DEF, or SPD.", "Consome Energia (EN) para treinar atributos permanentemente."), 12, COL_INK_SEC))
 
 	var grid := GridContainer.new()
 	grid.columns = 2
@@ -1209,12 +1249,12 @@ func _build_training_deck(d: Dictionary) -> void:
 	lvbox.add_child(grid)
 
 	var modules := [
-		{"title": "HP Roulette Drill", "sub": "Base +30 HP × [0.5x ~ 7.77x RNG]", "kind": "primary"},
-		{"title": "ATK Gamble Strike", "sub": "Base +8 ATK × [0.5x ~ 7.77x RNG]", "kind": "secondary"},
-		{"title": "DEF Aegis Roll", "sub": "Base +8 DEF × [0.5x ~ 7.77x RNG]", "kind": "secondary"},
-		{"title": "SP.ATK Overclock", "sub": "Base +8 SP.ATK × [0.5x ~ 7.77x RNG]", "kind": "secondary"},
-		{"title": "SPD Jump Reflex", "sub": "Base +6 SPD (Evade%) × RNG", "kind": "secondary"},
-		{"title": "777 LUK Casino Core", "sub": "Boosts Jackpot & AI Parry Rate!", "kind": "gold"},
+		{"stat": "hp_max", "title": "HP Endurance Drill", "sub": "Permanent +80 Max HP (-15 EN)", "gain": 80, "kind": "primary"},
+		{"stat": "atk", "title": "ATK Strike Dummy", "sub": "Permanent +14 Physical ATK (-15 EN)", "gain": 14, "kind": "secondary"},
+		{"stat": "def", "title": "DEF Iron Shield", "sub": "Permanent +12 Physical DEF (-15 EN)", "gain": 12, "kind": "secondary"},
+		{"stat": "sp_atk", "title": "SP.ATK Elemental Core", "sub": "Permanent +14 Elemental SP.ATK (-15 EN)", "gain": 14, "kind": "secondary"},
+		{"stat": "spd", "title": "SPD Agility Sprint", "sub": "Permanent +10 Speed & WaitTimer (-15 EN)", "gain": 10, "kind": "secondary"},
+		{"stat": "bulk", "title": "Bulk Gym Coach (All Stats)", "sub": "Consumes 50 EN → All Stats Boost!", "gain": 25, "kind": "gold"},
 	]
 	for m in modules:
 		var m_card := PanelContainer.new()
@@ -1225,11 +1265,28 @@ func _build_training_deck(d: Dictionary) -> void:
 		m_card.add_child(mv)
 		mv.add_child(_make_label(str(m["title"]), 14, COL_INK, true))
 		mv.add_child(_make_label(str(m["sub"]), 11, COL_INK_SEC, true))
-		var btn_launch := _make_button("🎲 Roll Drill (-12 EN)", str(m["kind"]), 210, 40)
+		var btn_launch := _make_button("🏋️ Start Training", str(m["kind"]), 210, 40)
+		var st_key: String = str(m["stat"])
+		var st_gain: int = int(m["gain"])
 		var t_title: String = str(m["title"])
 		btn_launch.pressed.connect(func():
 			GM.play_sound_fx("snd_Click06")
-			show_toast("★ 7.77x JACKPOT TRAINING on " + t_title + "!")
+			if st_key == "bulk":
+				GM.g["hp_max"] = int(GM.g["hp_max"]) + 160
+				GM.g["hp"] = int(GM.g["hp_max"])
+				GM.g["atk"] = int(GM.g["atk"]) + 24
+				GM.g["def"] = int(GM.g["def"]) + 20
+				GM.g["sp_atk"] = int(GM.g["sp_atk"]) + 24
+				GM.g["spd"] = int(GM.g["spd"]) + 16
+				GM.g["en"] = maxi(0, int(GM.g.get("en", 100)) - 30)
+			else:
+				GM.g[st_key] = int(GM.g.get(st_key, 200)) + st_gain
+				if st_key == "hp_max":
+					GM.g["hp"] = int(GM.g["hp_max"])
+				GM.g["en"] = maxi(0, int(GM.g.get("en", 100)) - 15)
+			GM.init_battle_state()
+			rebuild_for_room(_current_room)
+			show_toast("🏋️ Training Complete: " + t_title + "!")
 		)
 		mv.add_child(btn_launch)
 		grid.add_child(m_card)
@@ -1665,8 +1722,26 @@ func _build_world_map_deck(d: Dictionary, room_name: String) -> void:
 	vbox.add_theme_constant_override("separation", 12)
 	card.add_child(vbox)
 
-	vbox.add_child(_make_label("Digital World Expedition & Boss Arena  ·  1v1 Single-Match Auto-Chess", 18, COL_INK))
-	vbox.add_child(_make_label("Select any region or boss below to deploy your partner into autonomous jump-evade & RNG skill combat.", 12, COL_INK_SEC))
+	var cur_bmode: String = str(GM.g.get("battleMode", "world"))
+	var mode_row := HBoxContainer.new()
+	mode_row.add_theme_constant_override("separation", 10)
+	mode_row.add_child(_make_label("Battle Mode (room_Select_Battle_Mode):", 14, COL_ACCENT))
+	var modes := [
+		{"id": "world", "label": "🌍 Digital World Field"},
+		{"id": "challenge", "label": "🏅 Tamer Challenge (Rank %d)" % int(GM.g.get("challengeRank", 1))},
+		{"id": "infinity", "label": "🗼 Infinity Tower (Floor %d)" % int(GM.g.get("infinityFloor", 1))},
+		{"id": "adventure", "label": "🧭 Adventure Mode (Stage %d)" % int(GM.g.get("adventureStage", 1))},
+	]
+	for bm in modes:
+		var bmid: String = str(bm["id"])
+		var mbtn := _make_button(str(bm["label"]), "active_seg" if cur_bmode == bmid else "secondary", 170, 36)
+		mbtn.pressed.connect(func():
+			GM.g["battleMode"] = bmid
+			GM.play_sound_fx("snd_Click06")
+			rebuild_for_room(_current_room)
+		)
+		mode_row.add_child(mbtn)
+	vbox.add_child(mode_row)
 
 	var grid := GridContainer.new()
 	grid.columns = 3

@@ -23,11 +23,18 @@ var g := {
 	"PreviousRoom": "", "NPC_battle_stage": 0, "isAdventureMode": false, "isInfinityMode": false,
 	"scrollPerc": 0,
 	"dataMode": "demo", "reducedMotion": false,
-	"partnerId": 5, "partnerLv": 28, "bits": 24500,
-	"hp": 2200, "hp_max": 2200, "en": 88, "xp": 74,
-	"atk": 384, "def": 310, "sp_atk": 340, "spd": 265, "luk": 48,
-	"equippedItem": 10,
-	"enemyId": 87, "enemyLv": 32, "battleZone": "Magma Mountain",
+	"partnerId": 5, "partnerLv": 28, "bits": 24500, "digiCores": 12,
+	"hp": 2200, "hp_max": 2200, "en": 100, "xp": 74,
+	"hunger": 82, "friendship": 75.0, "injury": 0, "poopCount": 0,
+	"wins": 18, "losses": 2, "totalBattles": 20,
+	"tamerLv": 12, "tamerXp": 420, "tamerSp": 5,
+	"tamerSkills": [1, 1, 0, 1, 0, 0, 1, 0, 1, 1],
+	"atk": 384, "def": 310, "sp_atk": 340, "sp_def": 290, "spd": 265, "luk": 48,
+	"equippedItem": 10, "battleCards": [1, 5, 10, 14],
+	"storageDigis": [5, 3, 22, 85, 151],
+	"inventory": {"1": 5, "2": 3, "3": 4, "4": 2, "5": 2, "10": 1, "140": 1},
+	"infinityFloor": 1, "adventureStage": 1, "challengeRank": 1,
+	"enemyId": 87, "enemyLv": 32, "battleZone": "Magma Mountain", "battleMode": "world",
 	"BattleBG": "bg_Btl_Magma_Mountain", "MainRoomBG": "BG26", "sanctuaryThemeIdx": 0,
 }
 
@@ -194,10 +201,33 @@ func init_battle_state() -> void:
 	var e_spd: int = int(e_entry.get("base_spd", 240)) + e_lv
 	var e_luk: int = int(e_entry.get("base_luk", 38))
 
+	var p_attr: String = str(p_entry.get("attr", "Vaccine"))
+	var e_attr: String = str(e_entry.get("attr", "Virus"))
+	var atr_mod := 1.0
+	var ini_atr_mod := 1.0
+	# 원작 gml_Object_obj_Battle_CTRL_Create_0.gml 속성 상성 공식 (Vaccine > Virus > Data > Vaccine)
+	if (p_attr == "Vaccine" and e_attr == "Virus") or (p_attr == "Virus" and e_attr == "Data") or (p_attr == "Data" and e_attr == "Vaccine"):
+		atr_mod = 1.2
+		ini_atr_mod = 0.9
+	elif (e_attr == "Vaccine" and p_attr == "Virus") or (e_attr == "Virus" and p_attr == "Data") or (e_attr == "Data" and p_attr == "Vaccine"):
+		atr_mod = 0.9
+		ini_atr_mod = 1.2
+	elif p_attr == "Free" and e_attr != "Free":
+		atr_mod = 1.1
+		ini_atr_mod = 0.9
+
+	var injury_pen: int = int(floor(float(g.get("injury", 0)) * (float(p_lv) * 0.5)))
+	var btl_p_atk: int = int(round(float(p_atk) * atr_mod))
+	var btl_p_sp_atk: int = int(round(float(p_sp_atk) * atr_mod))
+	var btl_p_def: int = maxi(10, p_def - injury_pen)
+	var btl_e_atk: int = int(round(float(e_atk) * ini_atr_mod))
+
 	var prev_tactic: String = str(battle.get("ai_tactic", "balanced"))
 
 	battle = {
 		"bonus_bits": 0,
+		"given_xp": 0,
+		"tamer_xp_gain": 0,
 		"auto_skill": true,
 		"speed2x": true,
 		"ai_tactic": prev_tactic,
@@ -207,6 +237,8 @@ func init_battle_state() -> void:
 		"p_id": pid,
 		"p_name": p_name,
 		"p_lv": p_lv,
+		"p_attr": p_attr,
+		"p_atr_mod": atr_mod,
 		"p_icon": p_icon,
 		"p_hp": p_hp_max,
 		"p_hp_max": p_hp_max,
@@ -214,9 +246,9 @@ func init_battle_state() -> void:
 		"p_block": 100.0,
 		"p_combo": 0,
 		"p_acao": 1,
-		"p_atk": p_atk,
-		"p_def": p_def,
-		"p_sp_atk": p_sp_atk,
+		"p_atk": btl_p_atk,
+		"p_def": btl_p_def,
+		"p_sp_atk": btl_p_sp_atk,
 		"p_spd": p_spd,
 		"p_luk": p_luk,
 		"p_ai_state": "IDLE (acao=1)",
@@ -227,13 +259,15 @@ func init_battle_state() -> void:
 		"e_id": eid,
 		"e_name": e_name,
 		"e_lv": e_lv,
+		"e_attr": e_attr,
+		"e_atr_mod": ini_atr_mod,
 		"e_icon": eid,
 		"e_hp": e_hp_max,
 		"e_hp_max": e_hp_max,
 		"e_sp": 30.0,
 		"e_combo": 0,
 		"e_acao": 1,
-		"e_atk": e_atk,
+		"e_atk": btl_e_atk,
 		"e_def": e_def,
 		"e_spd": e_spd,
 		"e_luk": e_luk,
@@ -245,8 +279,8 @@ func init_battle_state() -> void:
 		"slot_desc": "Authentic acao State Machine + Auto-Battle",
 		"last_dice": 0,
 		"last_tier": "READY",
-		"last_mult": 1.0,
-		"last_log": "[AUTO BATTLE] %s vs %s (%s) — Original Real-Time Combat!" % [p_name, e_name, str(g.get("battleZone", "Arena"))],
+		"last_mult": atr_mod,
+		"last_log": "[AUTO BATTLE] %s (%s %.1fx) vs %s (%s) — Original Combat!" % [p_name, p_attr, atr_mod, e_name, str(g.get("battleZone", "Arena"))],
 		"skills": [
 			{"name": "Melee Strike", "tag": "acao=7 · Physical ATK", "cd": 0.2, "cd_max": 1.4, "power": 1.15, "sp_gain": 18.0, "last_roll": "READY (ATK)", "last_mult": 1.0},
 			{"name": "Ranged Sp.Atk", "tag": "acao=8 · Elemental SP.ATK", "cd": 0.4, "cd_max": 2.0, "power": 1.25, "sp_gain": 22.0, "last_roll": "READY (SP.ATK)", "last_mult": 1.0},
@@ -254,6 +288,37 @@ func init_battle_state() -> void:
 			{"name": "Special Ultimate", "tag": "acao=10 · SP 100% Finisher", "cd": 0.0, "cd_max": 1.0, "power": 2.35, "sp_gain": 0.0, "last_roll": "SP GAUGE AUTO", "last_mult": 2.0},
 		]
 	}
+
+
+func care_action(kind: String) -> String:
+	if kind == "food":
+		g["hunger"] = mini(100, int(g.get("hunger", 80)) + 25)
+		g["hp"] = mini(int(g["hp_max"]), int(g["hp"]) + int(float(g["hp_max"]) * 0.25))
+		g["xp"] = mini(100, int(g.get("xp", 50)) + 15)
+		if int(g["xp"]) >= 100:
+			g["xp"] = 0
+			g["partnerLv"] = int(g["partnerLv"]) + 1
+			g["hp_max"] = int(g["hp_max"]) + 85
+			g["atk"] = int(g["atk"]) + 12
+			g["def"] = int(g["def"]) + 10
+		return "🍖 Fed Meat! Hunger %d%% · HP Restored" % int(g["hunger"])
+	elif kind == "vitamin":
+		g["en"] = mini(100, int(g.get("en", 80)) + 40)
+		g["friendship"] = minf(100.0, float(g.get("friendship", 75.0)) + 3.0)
+		return "💊 Gave Vitamin! Energy %d/100 · Friendship %.0f%%" % [int(g["en"]), float(g["friendship"])]
+	elif kind == "clean":
+		g["poopCount"] = 0
+		g["friendship"] = minf(100.0, float(g.get("friendship", 75.0)) + 4.0)
+		return "🧹 Cleaned Sanctuary Floor! Hygiene 100%%"
+	elif kind == "bandage":
+		g["injury"] = 0
+		g["hp"] = int(g["hp_max"])
+		return "🩹 Treated Injury (machucado=0)! Full DEF & HP Restored"
+	elif kind == "sleep":
+		g["en"] = 100
+		g["hp"] = int(g["hp_max"])
+		return "💤 Partner Rested! Energy 100/100 & Full HP"
+	return ""
 
 
 func evolve_partner(to_id: int, bonus_hp: int = 600, bonus_atk: int = 95, bonus_def: int = 80, bonus_sp: int = 90) -> void:

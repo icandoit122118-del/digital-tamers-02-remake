@@ -407,14 +407,14 @@ fun SanctuaryScreen(repo: GameRepository) {
                                 },
                                 color = ColInk, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis
                             )
-                            Text("Lv.${repo.partnerLv} · LUK ${repo.luk}", color = ColGold, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            Text("Lv.${repo.partnerLv} · Tamer Lv.${repo.tamerLv}", color = ColGold, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                         }
                         Text(
-                            "ATK ${repo.atk} · DEF ${repo.def} · SPD ${repo.spd} · Dodge ${22 + (repo.spd * 0.08f).toInt()}%",
-                            color = ColInkSec, fontSize = 11.sp, maxLines = 1
+                            "ATK ${repo.atk} · DEF ${repo.def} · SPD ${repo.spd} · Hunger ${repo.hunger}% · Friend ${repo.friendship.roundToInt()}% · W/L ${repo.wins}/${repo.losses}",
+                            color = ColInkSec, fontSize = 10.sp, maxLines = 1
                         )
                         LinearProgressIndicator(
-                            progress = { 1f },
+                            progress = { (repo.hp.toFloat() / repo.hpMax.coerceAtLeast(1)).coerceIn(0f, 1f) },
                             modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
                             color = ColAccent,
                             trackColor = ColSurface
@@ -431,7 +431,7 @@ fun SanctuaryScreen(repo: GameRepository) {
             ) {
                 Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text("${repo.bits} BIT", color = ColGold, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                        Text("${repo.bits} BIT · EN ${repo.en}%", color = ColGold, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                         TamerButton("Biome: ${th.name}", "active_seg", Modifier.height(30.dp)) {
                             repo.sanctuaryThemeIdx = (repo.sanctuaryThemeIdx + 1) % repo.sanctuaryThemes.size
                             repo.showToast("Sanctuary Biome: ${repo.sanctuaryThemes[repo.sanctuaryThemeIdx].name}")
@@ -455,6 +455,22 @@ fun SanctuaryScreen(repo: GameRepository) {
             }
         }
 
+        // V-Pet Care Action Bar (obj_MainButtons: Meat, Vitamin, Clean, Bandage, Sleep)
+        Surface(
+            modifier = Modifier.fillMaxWidth().height(42.dp).align(Alignment.BottomCenter).offset(y = (-68).dp),
+            color = ColBgHud,
+            shape = RoundedCornerShape(12.dp),
+            border = BorderStroke(1.dp, ColBorder)
+        ) {
+            Row(modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TamerButton("🍖 Feed Meat", "primary", Modifier.weight(1f).fillMaxHeight()) { repo.careAction("food") }
+                TamerButton("💊 Vitamin (+EN)", "gold", Modifier.weight(1f).fillMaxHeight()) { repo.careAction("vitamin") }
+                TamerButton("🧹 Clean", "secondary", Modifier.weight(1f).fillMaxHeight()) { repo.careAction("clean") }
+                TamerButton("🩹 Bandage", "secondary", Modifier.weight(1f).fillMaxHeight()) { repo.careAction("bandage") }
+                TamerButton("💤 Sleep", "active_seg", Modifier.weight(1f).fillMaxHeight()) { repo.careAction("sleep") }
+            }
+        }
+
         // Bottom Navigation Dock
         Surface(
             modifier = Modifier.fillMaxWidth().height(62.dp).align(Alignment.BottomCenter),
@@ -465,7 +481,7 @@ fun SanctuaryScreen(repo: GameRepository) {
             Row(modifier = Modifier.padding(8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TamerButton("Digivice & Quests", "secondary", Modifier.weight(1f).fillMaxHeight()) { repo.currentRoom = "room_DigiVice" }
                 TamerButton("HD Items (750)", "gold", Modifier.weight(1f).fillMaxHeight()) { repo.currentRoom = "room_Battle_Items" }
-                TamerButton("Lucky Training", "secondary", Modifier.weight(1f).fillMaxHeight()) { repo.currentRoom = "room_SelectTraining" }
+                TamerButton("Gym Training", "secondary", Modifier.weight(1f).fillMaxHeight()) { repo.currentRoom = "room_SelectTraining" }
                 TamerButton("Digivolve Tree", "primary", Modifier.weight(1f).fillMaxHeight()) { repo.currentRoom = "room_Evo_Select" }
                 TamerButton("663 Digimon DB", "secondary", Modifier.weight(1f).fillMaxHeight()) { repo.currentRoom = "room_Database" }
                 TamerButton("World & Arena", "battle", Modifier.weight(1f).fillMaxHeight()) { repo.currentRoom = "room_Select_Map" }
@@ -753,48 +769,43 @@ fun ItemsForgeScreen(repo: GameRepository) {
 
 @Composable
 fun LuckyTrainingScreen(repo: GameRepository) {
-    var lastResult by remember { mutableStateOf("Select a training roulette below to roll 0.5x ~ 5.0x JACKPOT stat gains!") }
+    val drills = listOf(
+        Triple("HP", "🏋️ HP Endurance Drill", "+80 Max HP · -15 EN (TraningWhat=1)"),
+        Triple("ATK", "🥊 ATK Punching Bag", "+14 Physical ATK · -15 EN (TraningWhat=2)"),
+        Triple("DEF", "🛡️ DEF Shield Guard", "+12 Physical DEF · -15 EN (TraningWhat=3)"),
+        Triple("SP.ATK", "🔥 SP.ATK Blaster Target", "+14 Elemental SP.ATK · -15 EN (TraningWhat=4)"),
+        Triple("SPD", "⚡ SPD Sprint Track", "+10 Speed · -15 EN (TraningWhat=6)"),
+        Triple("BULK", "🏆 Bulk Gym Coach", "+160 HP & All Stats Boost · -30 EN (obj_Bulk_Gym_Coach)")
+    )
     Column(modifier = Modifier.fillMaxSize().padding(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        SubRoomHeader("Lucky Gamble Training Roulette (0.5x ~ 5.0x JACKPOT)", repo)
+        SubRoomHeader("Digital Tamers 02 Gym Training (room_SelectTraining)", repo)
         Surface(modifier = Modifier.fillMaxSize(), color = ColBgHud, shape = RoundedCornerShape(14.dp), border = BorderStroke(1.dp, ColBorder)) {
-            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(lastResult, color = ColGold, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth().weight(1f)) {
-                    val cards = listOf(
-                        Triple("ATK & SP.ATK Gamble", "+30~150 ATK/SP", "battle") to { mult: Float ->
-                            val gain = (32 * mult).roundToInt()
-                            repo.atk += gain; repo.spAtk += gain
-                        },
-                        Triple("DEF & HP Fortify", "+120~600 HP / +25~120 DEF", "primary") to { mult: Float ->
-                            val gain = (28 * mult).roundToInt()
-                            repo.def += gain; repo.hpMax += gain * 5; repo.hp = repo.hpMax
-                        },
-                        Triple("SPD & LUK Jackpot", "+15~75 SPD / +3~15 LUK", "gold") to { mult: Float ->
-                            repo.spd += (18 * mult).roundToInt()
-                            repo.luk = (repo.luk + (3 * mult).roundToInt()).coerceAtMost(99)
-                        }
-                    )
-                    cards.forEach { (info, applyFn) ->
+            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    "Partner Stats: HP ${repo.hpMax} · ATK ${repo.atk} · DEF ${repo.def} · SP.ATK ${repo.spAtk} · SPD ${repo.spd} · Energy ${repo.en}/100",
+                    color = ColGold, fontSize = 13.sp, fontWeight = FontWeight.Bold
+                )
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(3),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    items(drills) { (key, title, desc) ->
                         Surface(
-                            modifier = Modifier.weight(1f).fillMaxHeight(),
                             color = ColSurface,
                             shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.dp, ColBorder)
+                            border = BorderStroke(1.dp, if (key == "BULK") ColGold else ColBorder)
                         ) {
-                            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.SpaceBetween) {
-                                Text(info.first, color = ColInk, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                                Text(info.second, color = ColInkSec, fontSize = 12.sp)
-                                Text("Current: ATK ${repo.atk} · DEF ${repo.def} · SPD ${repo.spd} · LUK ${repo.luk}", color = ColAccent, fontSize = 11.sp)
-                                TamerButton("🎰 Roll Training Roulette", info.third, Modifier.fillMaxWidth().height(42.dp)) {
-                                    val r = Random.nextInt(1, 101)
-                                    val (m, tag) = when {
-                                        r >= 85 -> 5.0f to "★ 777 FEVER 5.0x JACKPOT! ★"
-                                        r >= 50 -> 2.5f to "SSR GREAT SUCCESS 2.5x!"
-                                        else -> 1.2f to "SOLID TRAINING 1.2x"
-                                    }
-                                    applyFn(m)
-                                    lastResult = "🎲 Roll D100($r) → $tag (${info.first} Boosted!)"
-                                    repo.showToast(tag)
+                            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(title, color = if (key == "BULK") ColGold else ColInk, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                                Text(desc, color = ColInkSec, fontSize = 11.sp, maxLines = 2)
+                                TamerButton(
+                                    text = if (key == "BULK") "🏋️ Run Bulk Coach" else "🏋️ Train $key",
+                                    kind = if (key == "BULK") "gold" else "primary",
+                                    modifier = Modifier.fillMaxWidth().height(36.dp)
+                                ) {
+                                    repo.trainGymStat(key)
                                 }
                             }
                         }
@@ -946,22 +957,40 @@ fun DigiviceQuestScreen(repo: GameRepository) {
             }
 
             Surface(modifier = Modifier.weight(1f).fillMaxHeight(), color = ColBgHud, shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, ColAccent)) {
-                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("D-Terminal OS Save Manager", color = ColAccent, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                    Text("Persistent Android Internal Storage: tamer_save_v2.json", color = ColInkSec, fontSize = 11.sp)
-                    TamerButton("💾 Save Progress Now", "primary", Modifier.fillMaxWidth().height(42.dp)) {
+                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Tamer Profile & Digivice OS", color = ColAccent, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        "Tamer Lv.${repo.tamerLv} (XP ${repo.tamerXp}/${repo.tamerLv * 250}) · SP: ${repo.tamerSp}",
+                        color = ColGold, fontSize = 12.sp, fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        "Record: ${repo.wins}W / ${repo.losses}L · Tower B${repo.infinityFloor}F · Rank #${repo.challengeRank}",
+                        color = ColInkSec, fontSize = 11.sp
+                    )
+                    TamerButton("⚡ Upgrade Tamer Skill (+18 ATK/DEF · 1 SP)", "gold", Modifier.fillMaxWidth().height(36.dp)) {
+                        if (repo.tamerSp > 0) {
+                            repo.tamerSp -= 1
+                            repo.tamerSkills += 1
+                            repo.atk += 18
+                            repo.def += 18
+                            repo.showToast("⚡ Tamer Skill Lv.${repo.tamerSkills} Unlocked! (+18 ATK/DEF)")
+                        } else {
+                            repo.tamerLv += 1
+                            repo.atk += 12
+                            repo.def += 12
+                            repo.showToast("⚡ Tamer Field Mastery Boost! (+12 ATK/DEF)")
+                        }
+                    }
+                    TamerButton("💾 Save Progress Now", "primary", Modifier.fillMaxWidth().height(36.dp)) {
                         val ok = repo.saveGameState()
                         repo.showToast(if (ok) "Saved to tamer_save_v2.json" else "Save failed")
                     }
-                    TamerButton("📂 Load Saved State", "secondary", Modifier.fillMaxWidth().height(42.dp)) {
+                    TamerButton("📂 Load Saved State", "secondary", Modifier.fillMaxWidth().height(36.dp)) {
                         val ok = repo.loadGameState()
                         repo.showToast(if (ok) "Save state loaded!" else "No save file found")
                     }
-                    TamerButton("Open 436 Digivolution Matrix", "gold", Modifier.fillMaxWidth().height(42.dp)) {
+                    TamerButton("Open 436 Digivolution Matrix", "secondary", Modifier.fillMaxWidth().height(36.dp)) {
                         repo.currentRoom = "room_Evo_Select"
-                    }
-                    TamerButton("Open 663 Digimon Encyclopedia", "secondary", Modifier.fillMaxWidth().height(42.dp)) {
-                        repo.currentRoom = "room_Database"
                     }
                 }
             }
@@ -971,8 +1000,26 @@ fun DigiviceQuestScreen(repo: GameRepository) {
 
 @Composable
 fun WorldExpeditionScreen(repo: GameRepository) {
+    val modes = listOf(
+        "world" to "🌍 World Field",
+        "challenge" to "🏅 Challenge (R.${repo.challengeRank})",
+        "infinity" to "🗼 Infinity (B${repo.infinityFloor}F)",
+        "adventure" to "🧭 Adventure (Stg.${repo.adventureStage})"
+    )
     Column(modifier = Modifier.fillMaxSize().padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        SubRoomHeader("Digital World Expedition & 1v1 Boss Arenas", repo)
+        SubRoomHeader("Select Battle Mode & Digital World Arenas (room_Select_Battle_Mode)", repo)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            modes.forEach { (key, label) ->
+                TamerButton(
+                    text = label,
+                    kind = if (repo.battleMode == key) "active_seg" else "secondary",
+                    modifier = Modifier.weight(1f).height(34.dp)
+                ) {
+                    repo.battleMode = key
+                    repo.showToast("Battle Mode: $label")
+                }
+            }
+        }
         Surface(modifier = Modifier.fillMaxSize(), color = ColBgHud, shape = RoundedCornerShape(14.dp), border = BorderStroke(1.dp, ColBorder)) {
             LazyVerticalGrid(
                 columns = GridCells.Fixed(3),
@@ -981,6 +1028,13 @@ fun WorldExpeditionScreen(repo: GameRepository) {
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 items(repo.stageArenas) { st ->
+                    val modeLvBonus = when (repo.battleMode) {
+                        "challenge" -> repo.challengeRank * 3
+                        "infinity" -> repo.infinityFloor * 2
+                        "adventure" -> repo.adventureStage * 2
+                        else -> 0
+                    }
+                    val effLv = st.lv + modeLvBonus
                     Surface(color = ColSurface, shape = RoundedCornerShape(10.dp), border = BorderStroke(1.dp, ColBorder)) {
                         Row(modifier = Modifier.padding(8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                             repo.tex(st.bg, 0)?.let { bgBmp ->
@@ -994,9 +1048,9 @@ fun WorldExpeditionScreen(repo: GameRepository) {
                             }
                             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                                 Text(st.zone, color = ColAccent, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
-                                Text("${st.bossName} (Lv.${st.lv})", color = ColInk, fontSize = 10.sp, maxLines = 1)
+                                Text("${st.bossName} (Lv.$effLv)", color = ColInk, fontSize = 10.sp, maxLines = 1)
                                 TamerButton("⚔️ Deploy 1v1", "battle", Modifier.fillMaxWidth().height(30.dp)) {
-                                    repo.startStageBattle(st.bossId, st.lv, st.zone, st.bg)
+                                    repo.startStageBattle(st.bossId, effLv, "${st.zone} [${repo.battleMode.uppercase()}]", st.bg)
                                 }
                             }
                         }

@@ -144,8 +144,25 @@ class GameRepository(private val context: Context) {
     var bits by mutableIntStateOf(24500)
     var hp by mutableIntStateOf(2200)
     var hpMax by mutableIntStateOf(2200)
-    var en by mutableIntStateOf(88)
+    var en by mutableIntStateOf(100)
     var xp by mutableIntStateOf(74)
+    var hunger by mutableIntStateOf(82)
+    var friendship by mutableFloatStateOf(75f)
+    var injury by mutableIntStateOf(0)
+    var poopCount by mutableIntStateOf(0)
+    var wins by mutableIntStateOf(18)
+    var losses by mutableIntStateOf(2)
+    var totalBattles by mutableIntStateOf(20)
+    var tamerLv by mutableIntStateOf(12)
+    var tamerXp by mutableIntStateOf(420)
+    var tamerSp by mutableIntStateOf(5)
+    var tamerSkills by mutableIntStateOf(3)
+    var battleMode by mutableStateOf("world")
+    var infinityFloor by mutableIntStateOf(1)
+    var challengeRank by mutableIntStateOf(1)
+    var adventureStage by mutableIntStateOf(1)
+    var pAtrMod by mutableFloatStateOf(1.0f)
+    var eAtrMod by mutableFloatStateOf(1.0f)
     var atk by mutableIntStateOf(384)
     var def by mutableIntStateOf(310)
     var spAtk by mutableIntStateOf(340)
@@ -458,6 +475,19 @@ class GameRepository(private val context: Context) {
     fun initBattleState() {
         val pEntry = digimons[partnerId]
         val eEntry = digimons[enemyId]
+        val pAttr = pEntry?.attr ?: "Vaccine"
+        val eAttr = eEntry?.attr ?: "Virus"
+        if ((pAttr == "Vaccine" && eAttr == "Virus") || (pAttr == "Virus" && eAttr == "Data") || (pAttr == "Data" && eAttr == "Vaccine")) {
+            pAtrMod = 1.2f
+            eAtrMod = 0.9f
+        } else if ((eAttr == "Vaccine" && pAttr == "Virus") || (eAttr == "Virus" && pAttr == "Data") || (eAttr == "Data" && pAttr == "Vaccine")) {
+            pAtrMod = 0.9f
+            eAtrMod = 1.2f
+        } else {
+            pAtrMod = 1.0f
+            eAtrMod = 1.0f
+        }
+
         pHpMax = if (dataMode == "worst") 99999 else if (dataMode == "empty") 950 else hpMax
         pHp = pHpMax
         pSp = 45f
@@ -481,7 +511,7 @@ class GameRepository(private val context: Context) {
         eSp = 30f
         eCombo = 0
         eAcao = 1
-        eAtk = (eEntry?.baseAtk ?: 320) + enemyLv * 4
+        eAtk = (((eEntry?.baseAtk ?: 320) + enemyLv * 4) * eAtrMod).roundToInt()
         eDef = (eEntry?.baseDef ?: 260) + enemyLv * 3
         eSpd = (eEntry?.baseSpd ?: 240) + enemyLv * 2
         eLuk = eEntry?.baseLuk ?: 45
@@ -502,8 +532,89 @@ class GameRepository(private val context: Context) {
             s.cd = 0.2f
         }
         lastTier = "READY"
-        lastMult = 1.0
-        lastLog = "[AUTO BATTLE] ${pEntry?.name ?: "Partner"} vs ${eEntry?.name ?: "Boss"} ($battleZone) — Original Combat!"
+        lastMult = pAtrMod.toDouble()
+        lastLog = "[AUTO BATTLE] ${pEntry?.name ?: "Partner"} ($pAttr ${pAtrMod}x) vs ${eEntry?.name ?: "Boss"} ($battleZone)"
+    }
+
+    fun careAction(kind: String) {
+        when (kind) {
+            "food" -> {
+                hunger = min(100, hunger + 25)
+                hp = min(hpMax, hp + (hpMax * 0.25f).roundToInt())
+                xp = min(100, xp + 15)
+                if (xp >= 100) {
+                    xp = 0
+                    partnerLv += 1
+                    hpMax += 85
+                    atk += 12
+                    def += 10
+                }
+                showToast("🍖 Fed Meat! Hunger $hunger% · HP Restored")
+            }
+            "vitamin" -> {
+                en = min(100, en + 40)
+                friendship = min(100f, friendship + 3f)
+                showToast("💊 Vitamin! Energy $en/100 · Friendship ${friendship.roundToInt()}%")
+            }
+            "clean" -> {
+                poopCount = 0
+                friendship = min(100f, friendship + 4f)
+                showToast("🧹 Cleaned Sanctuary! Hygiene 100%")
+            }
+            "bandage" -> {
+                injury = 0
+                hp = hpMax
+                showToast("🩹 Bandage Applied! Injury=0 & Full HP")
+            }
+            "sleep" -> {
+                en = 100
+                hp = hpMax
+                showToast("💤 Partner Slept! Energy 100/100 & Full HP")
+            }
+        }
+        initBattleState()
+    }
+
+    fun trainGymStat(statKey: String) {
+        when (statKey) {
+            "HP" -> {
+                hpMax += 80
+                hp = hpMax
+                en = max(0, en - 15)
+                showToast("🏋️ HP Gym Drill: +80 Max HP!")
+            }
+            "ATK" -> {
+                atk += 14
+                en = max(0, en - 15)
+                showToast("🏋️ ATK Gym Drill: +14 Physical ATK!")
+            }
+            "DEF" -> {
+                def += 12
+                en = max(0, en - 15)
+                showToast("🏋️ DEF Gym Drill: +12 Physical DEF!")
+            }
+            "SP.ATK" -> {
+                spAtk += 14
+                en = max(0, en - 15)
+                showToast("🏋️ SP.ATK Gym Drill: +14 Elemental SP.ATK!")
+            }
+            "SPD" -> {
+                spd += 10
+                en = max(0, en - 15)
+                showToast("🏋️ SPD Gym Drill: +10 Speed!")
+            }
+            "BULK" -> {
+                hpMax += 160
+                hp = hpMax
+                atk += 24
+                def += 20
+                spAtk += 24
+                spd += 16
+                en = max(0, en - 30)
+                showToast("🏋️ Bulk Gym Coach: All Stats Boosted!")
+            }
+        }
+        initBattleState()
     }
 
     fun startStageBattle(bossId: Int, bossLv: Int, zone: String, bg: String) {
@@ -545,6 +656,19 @@ class GameRepository(private val context: Context) {
             o.put("sanctuaryThemeIdx", sanctuaryThemeIdx)
             o.put("battleZone", battleZone)
             o.put("battleBg", battleBg)
+            o.put("hunger", hunger)
+            o.put("friendship", friendship.toDouble())
+            o.put("injury", injury)
+            o.put("poopCount", poopCount)
+            o.put("wins", wins)
+            o.put("losses", losses)
+            o.put("tamerLv", tamerLv)
+            o.put("tamerXp", tamerXp)
+            o.put("tamerSp", tamerSp)
+            o.put("battleMode", battleMode)
+            o.put("infinityFloor", infinityFloor)
+            o.put("adventureStage", adventureStage)
+            o.put("challengeRank", challengeRank)
             File(context.filesDir, "tamer_save_v2.json").writeText(o.toString(2))
             true
         } catch (_: Exception) {
@@ -571,6 +695,19 @@ class GameRepository(private val context: Context) {
             sanctuaryThemeIdx = o.optInt("sanctuaryThemeIdx", sanctuaryThemeIdx)
             battleZone = o.optString("battleZone", battleZone)
             battleBg = o.optString("battleBg", battleBg)
+            hunger = o.optInt("hunger", hunger)
+            friendship = o.optDouble("friendship", friendship.toDouble()).toFloat()
+            injury = o.optInt("injury", injury)
+            poopCount = o.optInt("poopCount", poopCount)
+            wins = o.optInt("wins", wins)
+            losses = o.optInt("losses", losses)
+            tamerLv = o.optInt("tamerLv", tamerLv)
+            tamerXp = o.optInt("tamerXp", tamerXp)
+            tamerSp = o.optInt("tamerSp", tamerSp)
+            battleMode = o.optString("battleMode", battleMode)
+            infinityFloor = o.optInt("infinityFloor", infinityFloor)
+            adventureStage = o.optInt("adventureStage", adventureStage)
+            challengeRank = o.optInt("challengeRank", challengeRank)
             initBattleState()
             true
         } catch (_: Exception) {
@@ -880,12 +1017,7 @@ class GameRepository(private val context: Context) {
                     popups.add(FloatingPopup(eX, eY - 48f, "-${p.dmg}$comboTxt", p.colHex))
                     toRemove.add(p)
                     if (eHp <= 0) {
-                        btlFinished = true
-                        btlWin = true
-                        val bonus = 2800 + enemyLv * 65
-                        bits += bonus
-                        btlResultBanner = "🏆 VICTORY! (+$bonus BIT · Combo: $pCombo)"
-                        lastLog = btlResultBanner
+                        settleOriginalMatchOutcome(true)
                     }
                 }
             } else {
@@ -903,9 +1035,7 @@ class GameRepository(private val context: Context) {
                         popups.add(FloatingPopup(pX, pY - 56f, "BLOCKED (-$blockedDmg) & COUNTER!", 0xFF38BDF8))
                         eHp = max(0, eHp - cDmg)
                         if (eHp <= 0) {
-                            btlFinished = true
-                            btlWin = true
-                            btlResultBanner = "🏆 VICTORY BY GUARD COUNTER!"
+                            settleOriginalMatchOutcome(true)
                         }
                     } else {
                         pHp = max(0, pHp - p.dmg)
@@ -917,10 +1047,7 @@ class GameRepository(private val context: Context) {
                         pAnimTimer = 10
                         popups.add(FloatingPopup(pX, pY - 48f, "-${p.dmg} (${p.tier})", 0xFFFF6B4A))
                         if (pHp <= 0) {
-                            btlFinished = true
-                            btlWin = false
-                            btlResultBanner = "💀 DEFEAT — Partner Fainted in Battle"
-                            lastLog = btlResultBanner
+                            settleOriginalMatchOutcome(false)
                         }
                     }
                 }
@@ -937,16 +1064,65 @@ class GameRepository(private val context: Context) {
         popups.removeAll(expiredPopups)
     }
 
+    private fun settleOriginalMatchOutcome(playerWon: Boolean) {
+        if (btlFinished) return
+        btlFinished = true
+        btlWin = playerWon
+        totalBattles += 1
+        hunger = max(0, hunger - 4)
+        en = max(0, en - 8)
+        if (playerWon) {
+            wins += 1
+            friendship = min(100f, friendship + 0.3f)
+            val wonBits = (enemyLv * 50f * pAtrMod).roundToInt() + 1200
+            val givenXp = (enemyLv * 45f * pAtrMod).roundToInt()
+            val tamerGain = max(10, givenXp / 4)
+            bits += wonBits
+            xp += 35
+            if (xp >= 100) {
+                xp -= 100
+                partnerLv += 1
+                hpMax += 90
+                hp = hpMax
+                atk += 14
+                def += 12
+                spAtk += 14
+                spd += 8
+            }
+            tamerXp += tamerGain
+            if (tamerXp >= tamerLv * 250) {
+                tamerXp = 0
+                tamerLv += 1
+                tamerSp += 1
+            }
+            when (battleMode) {
+                "infinity" -> infinityFloor += 1
+                "challenge" -> challengeRank += 1
+                "adventure" -> adventureStage += 1
+            }
+            btlResultBanner = "🏆 VICTORY! (+$wonBits BIT · +$givenXp XP · Tamer Lv.$tamerLv)"
+        } else {
+            losses += 1
+            injury = min(5, injury + 1)
+            friendship = max(0f, friendship - 1f)
+            val consolationXp = max(15, (enemyLv * 12f).roundToInt())
+            tamerXp += consolationXp / 4
+            btlResultBanner = "💀 DEFEAT (Injury:$injury — Use Bandage in Sanctuary)"
+        }
+        lastLog = btlResultBanner
+    }
+
     fun runDiagnosticSelfTest(): String {
         val sb = StringBuilder()
         sb.append("DB[digimons=${digimons.size},evos=${evolutions.values.sumOf { it.size }},items=${items.size},quests=${quests.size}] | ")
 
-        // 1. Sanctuary biome cycle test
+        // 1. Sanctuary biome & V-Pet care test
         val oldTheme = sanctuaryThemes[sanctuaryThemeIdx].name
         sanctuaryThemeIdx = (sanctuaryThemeIdx + 1) % sanctuaryThemes.size
         val curTheme = sanctuaryThemes[sanctuaryThemeIdx]
         val bgBmp = tex(curTheme.bg, 0)
-        sb.append("Sanctuary[$oldTheme->${curTheme.name},bgLoaded=${bgBmp != null}] | ")
+        careAction("food")
+        sb.append("Sanctuary[$oldTheme->${curTheme.name},bgLoaded=${bgBmp != null},hunger=$hunger] | ")
 
         // 2. HD Item equip & Lucky Forge test
         equippedItem = 10
@@ -954,10 +1130,10 @@ class GameRepository(private val context: Context) {
         val itemBmp = texItemHd(10)
         sb.append("ItemHD[id=10,bmp=${itemBmp != null},affix=${itemAffixes[10]}] | ")
 
-        // 3. Lucky Training test
+        // 3. Original Gym Training test
         val oldAtk = atk
-        atk += 48
-        sb.append("Train[ATK:$oldAtk->$atk] | ")
+        trainGymStat("ATK")
+        sb.append("GymTrain[ATK:$oldAtk->$atk] | ")
 
         // 4. Digivolution test
         val routes = evolutions[partnerId] ?: emptyList()
