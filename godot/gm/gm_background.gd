@@ -124,8 +124,8 @@ func _apply_dynamic_biome_layers() -> void:
 		scroll[0] = Vector2.ZERO
 		# 2) 중경 원경 장식 레이어 (spr_DecoLayer02: 바닥을 y=219 지면에 정렬)
 		if int(th["layer2"]) >= 0:
-			var t2 := GM.tex("spr_DecoLayer02", int(th["layer2"]))
-			var h2: float = float(t2.get_height()) if t2 != null else 218.0
+			var s2: Dictionary = GM.sprites.get("spr_DecoLayer02", {})
+			var h2: float = float(s2.get("h", 218.0))
 			layers.append({
 				"sprite": "spr_DecoLayer02",
 				"frame": int(th["layer2"]),
@@ -139,8 +139,8 @@ func _apply_dynamic_biome_layers() -> void:
 			scroll[2] = Vector2.ZERO
 		# 3) 전경 수풀/기둥 레이어 (spr_DecoLayer01: 바닥을 y=219 지면에 정렬)
 		if int(th["layer1"]) >= 0:
-			var t1 := GM.tex("spr_DecoLayer01", int(th["layer1"]))
-			var h1: float = float(t1.get_height()) if t1 != null else 248.0
+			var s1: Dictionary = GM.sprites.get("spr_DecoLayer01", {})
+			var h1: float = float(s1.get("h", 248.0))
 			layers.append({
 				"sprite": "spr_DecoLayer01",
 				"frame": int(th["layer1"]),
@@ -204,12 +204,14 @@ func tick() -> void:
 
 func _draw() -> void:
 	for l in layers:
+		var spr_name: String = str(l["sprite"])
 		var f_idx: int = int(l.get("frame", 0))
-		var t := GM.tex(str(l["sprite"]), f_idx)
+		var t := GM.tex(spr_name, f_idx)
 		if t == null:
 			continue
-		var w := float(t.get_width())
-		var h := float(t.get_height())
+		var s_info: Dictionary = GM.sprites.get(spr_name, {})
+		var w: float = float(s_info.get("w", room_size.x))
+		var h: float = float(s_info.get("h", room_size.y))
 		var off: Vector2 = scroll.get(l["index"], Vector2.ZERO)
 		var ox: float = float(l["xoff"]) + off.x
 		var oy: float = float(l["yoff"]) + off.y
@@ -221,7 +223,7 @@ func _draw() -> void:
 		while x < room_size.x:
 			var y: float = oy
 			while y < room_size.y:
-				draw_texture(t, Vector2(floorf(x), floorf(y)))
+				draw_texture_rect(t, Rect2(floorf(x), floorf(y), w, h), false)
 				if not l["tiledV"]:
 					break
 				y += h
@@ -238,6 +240,8 @@ func _draw() -> void:
 			var ptex := GM.tex(spr_name, 0)
 			if ptex != null and GM.sprites.has(spr_name):
 				var s_meta: Dictionary = GM.sprites[spr_name]
-				var orig := Vector2(float(s_meta.get("ox", ptex.get_width() * 0.5)), float(s_meta.get("oy", ptex.get_height())))
+				var pw: float = float(s_meta.get("w", ptex.get_width()))
+				var ph: float = float(s_meta.get("h", ptex.get_height()))
+				var orig := Vector2(float(s_meta.get("originX", pw * 0.5)), float(s_meta.get("originY", ph)))
 				var draw_pos := Vector2(float(p["x"]) - orig.x, float(p["y"]) - orig.y)
-				draw_texture(ptex, draw_pos)
+				draw_texture_rect(ptex, Rect2(draw_pos, Vector2(pw, ph)), false)

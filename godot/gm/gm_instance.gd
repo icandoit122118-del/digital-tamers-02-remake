@@ -124,8 +124,12 @@ func draw_sprite_ext(spr: String, frame: int, px: float, py: float, xs: float, y
 	var tex := GM.tex(spr, posmod(frame, n))
 	if tex == null:
 		return
+	var lw: float = float(s.get("w", tex.get_width()))
+	var lh: float = float(s.get("h", tex.get_height()))
+	var ox: float = float(s.get("originX", 0.0))
+	var oy: float = float(s.get("originY", 0.0))
 	draw_set_transform(Vector2(px, py), deg_to_rad(-ang), Vector2(xs, ys))
-	draw_texture(tex, Vector2(-s["originX"], -s["originY"]), Color(blend.r, blend.g, blend.b, alpha))
+	draw_texture_rect(tex, Rect2(-ox, -oy, lw, lh), false, Color(blend.r, blend.g, blend.b, alpha))
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 

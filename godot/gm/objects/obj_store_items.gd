@@ -1,5 +1,5 @@
 extends GMInstance
-## obj_store_items (원작 gml_Object_obj_store_items_Draw_0.gml: 상점 판매 아이템 행)
+## obj_store_items (원작 gml_Object_obj_store_items_Draw_0.gml: 상점 판매 아이템 행 + 2x HD 아이템 아이콘 렌더링)
 
 var ID := 1
 var ItemName := "Small Meat"
@@ -23,6 +23,7 @@ func _sync_item() -> void:
 	var lang: int = int(GM.g.get("Language", 0))
 	ItemName = str(it.get("name_pt" if lang == 1 else "name", "Item %d" % ID))
 	ItemPrice = maxi(25, int(it.get("price", 100)))
+	image_index = float(posmod(ID, 30))
 
 
 func mouse_left_pressed() -> void:
@@ -57,7 +58,9 @@ func draw() -> void:
 		draw_set_color(0xCE39FF)
 		draw_rectangle(x - 5.0, y + 1.0, x + 189.0, y + 12.0, false)
 	draw_set_color(0xFFFFFF)
-	draw_self()
+	# 슬롯 프레임 + 해당 아이템 고유 2x HD 아이콘(spr_Items_HD) 렌더링
+	draw_sprite("spr_store_items", 0, x, y)
+	draw_sprite_stretched("spr_Items", ID, x - 18.0, y + 1.0, 12.0, 12.0, Color.WHITE, 1.0)
 	draw_set_format("fnt_Text", 0xFFFFFF, 0, 0)
 	draw_text_shadow(x, y + 1.0, ItemName, 0xFFFFE7, 0x9C7342)
 	draw_set_format("fnt_Text", 0xDDE105, 0, 2)

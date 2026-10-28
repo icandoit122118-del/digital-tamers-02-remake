@@ -435,12 +435,18 @@ func tex(spr: String, frame_i: int = 0) -> Texture2D:
 	if _tex_cache.has(key):
 		return _tex_cache[key]
 	var t: Texture2D = null
-	var candidates := [
+	var candidates: Array = []
+	if spr == "spr_Items":
+		candidates.append("%ssprites/spr_Items_HD/spr_Items_HD_%d.png" % [RES_ASSETS, frame_i])
+		candidates.append("%sspr_Items_HD/spr_Items_HD_%d.png" % [SPR, frame_i])
+	candidates.append_array([
+		"%ssprites/ui_HD/%s_%d.png" % [RES_ASSETS, spr, frame_i],
 		"%ssprites/bg_HD/%s_%d.png" % [RES_ASSETS, spr, frame_i],
-		"%ssprites/%s/%s_%d.png" % [RES_ASSETS, spr, spr, frame_i],
+		"%sui_HD/%s_%d.png" % [SPR, spr, frame_i],
 		"%sbg_HD/%s_%d.png" % [SPR, spr, frame_i],
+		"%ssprites/%s/%s_%d.png" % [RES_ASSETS, spr, spr, frame_i],
 		"%s%s/%s_%d.png" % [SPR, spr, spr, frame_i],
-	]
+	])
 	var p := ""
 	for c in candidates:
 		if FileAccess.file_exists(c):
