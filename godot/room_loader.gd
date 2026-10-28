@@ -10,12 +10,16 @@ func _ready() -> void:
 		var kv: PackedStringArray = a.trim_prefix("--").split("=", true, 1)
 		args[kv[0]] = kv[1] if kv.size() > 1 else "1"
 	var start_room: String = args.get("room", "room_MainMenu")
-	if args.has("legacy"):
+	if args.has("modern_ui"):
+		GM.use_modern_ui = true
+	elif args.has("legacy"):
 		GM.use_modern_ui = false
 	GM.room_goto(start_room)
 
 	var sc: String = args.get("scenario", "")
-	if sc == "full_port":
+	if sc == "original_flow":
+		_run_original_flow_scenario()
+	elif sc == "full_port":
 		_run_full_port_scenario()
 	elif sc == "backgrounds_verify":
 		_run_backgrounds_verify_scenario()
@@ -130,5 +134,75 @@ func _run_backgrounds_verify_scenario() -> void:
 	GM.room_goto("room_Battle")
 	await _wait_frames(34)
 	await _shot("bg_06_battle_dark_area")
+
+	get_tree().quit(0)
+
+
+func _run_original_flow_scenario() -> void:
+	GM.use_modern_ui = false
+
+	# 1) room_MainMenu (원작 타이틀 + New Game / Continue / Options 버튼)
+	GM.room_goto("room_MainMenu")
+	await _wait_frames(12)
+	for inst in GM.instances:
+		if inst.obj_name == "obj_Game_Title":
+			inst.global_left_released()
+			inst.global_left_released()
+	await _wait_frames(8)
+	await _shot("orig_01_mainmenu")
+
+	# 2) room_Intro_Screen (원작 연결 연출 -> 10종 스타터 디지타마 선택 화면)
+	GM.room_goto("room_Intro_Screen")
+	await _wait_frames(8)
+	for inst in GM.instances.duplicate():
+		if inst.obj_name == "obj_Intro_Connect":
+			inst.global_left_released()
+	await _wait_frames(10)
+	await _shot("orig_02_intro_eggs")
+
+	# 3) 디지타마 #0(Botamon/Agumon 라인) 선택 -> room_MainRoom 진입 (알 상태 -> 부화 -> FoodBar & Digi_Info 열기)
+	GM.start_new_game_with_egg(0)
+	GM.room_goto("room_MainRoom")
+	await _wait_frames(12)
+	await _shot("orig_03_mainroom_egg")
+	GM.hatch_partner_egg()
+	GM.g["StatsAberto"] = true
+	for inst in GM.instances:
+		if inst.obj_name == "obj_FoodBar":
+			inst.set("Aberto", true)
+	await _wait_frames(18)
+	await _shot("orig_04_mainroom_hud_care")
+
+	# 4) room_SelectTraining -> room_Training (원작 체육관 스탯 훈련 선택 및 미니게임 실행)
+	GM.room_goto("room_SelectTraining")
+	await _wait_frames(14)
+	await _shot("orig_05_select_training")
+	GM.g["TraningWhat"] = 1
+	GM.room_goto("room_Training")
+	await _wait_frames(65)
+	await _shot("orig_06_training_gym")
+
+	# 5) room_Select_Battle_Mode -> room_Select_Map -> room_Battle (원작 4대 배틀 모드 & 월드맵 & 실시간 액션 오토배틀)
+	GM.room_goto("room_Select_Battle_Mode")
+	await _wait_frames(14)
+	await _shot("orig_07_battle_modes")
+	GM.room_goto("room_Select_Map")
+	await _wait_frames(14)
+	await _shot("orig_08_world_map")
+	GM.start_stage_battle(85, 28, "Boot Jungle", "bg_Btl_Boot_Jungle")
+	GM.room_goto("room_Battle")
+	await _wait_frames(42)
+	await _shot("orig_09_battle_original_hud")
+
+	# 6) room_Evolution & room_Loja & room_DigiVice (원작 진화 카드, 아이템 상점, 디지바이스)
+	GM.room_goto("room_Evolution")
+	await _wait_frames(14)
+	await _shot("orig_10_evolution_cards")
+	GM.room_goto("room_Loja")
+	await _wait_frames(14)
+	await _shot("orig_11_shop_loja")
+	GM.room_goto("room_DigiVice")
+	await _wait_frames(14)
+	await _shot("orig_12_digivice_hub")
 
 	get_tree().quit(0)

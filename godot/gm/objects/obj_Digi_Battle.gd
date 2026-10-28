@@ -458,6 +458,8 @@ func _finish_single_match(b: Dictionary, is_win: bool) -> void:
 		b["result_banner"] = "💀 DEFEAT (+%d BIT · +%d XP · Injury +1)" % [won_bits, given_xp]
 		b["last_log"] = "💀 DEFEAT: Treat injury (Bandage) or train stats in Sanctuary!"
 		_spawn_popup(269.0, 104.0, b["result_banner"], Color("#FF6B4A"), 1.4)
+	if not GM.instance_exists("obj_Win_Lose_HUD"):
+		GM.instance_create(79.0, 92.0, "obj_Win_Lose_HUD")
 
 
 func _spawn_popup(px: float, py: float, txt: String, col: Color, scale_f: float = 1.0) -> void:

@@ -1,0 +1,31 @@
+extends GMInstance
+## obj_Special_PLAYER (원작 좌하단 필살기 오브/아이콘 버튼 -> 클릭 시 SP 궁극기 발동)
+
+var ImClicked := false
+
+
+func create() -> void:
+	image_speed = 0.0
+	depth = -2100
+
+
+func step() -> void:
+	image_index = 1.0 if float(GM.battle.get("p_sp", 0.0)) >= 100.0 else 0.0
+
+
+func mouse_left_pressed() -> void:
+	ImClicked = true
+
+
+func mouse_leave() -> void:
+	ImClicked = false
+
+
+func mouse_left_released() -> void:
+	if not ImClicked:
+		return
+	ImClicked = false
+	for inst in GM.instances:
+		if inst.obj_name == "obj_Digi_Battle" and not inst.dead:
+			inst._cast_skill(3, 1.0)
+			break

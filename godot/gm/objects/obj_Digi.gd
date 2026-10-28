@@ -1,21 +1,28 @@
 extends GMInstance
-## obj_Digi (Sanctuary 파트너 디지몬 애니메이션 — 663종 전체 디지몬 동적 연동)
+## obj_Digi (원작 room_MainRoom 파트너 디지몬: DigiTama 알 부화 -> 유년기/성장기/완전체 보행 및 케어 반응)
 
+var acao := 1
 var _dir := 1.0
-var _walk_timer := 90
+var _walk_timer := 60
+var _hatch_timer := 45
 
 
 func create() -> void:
 	image_speed = 0.22
+	_hatch_timer = 45
 	_sync_partner_sprite()
 
 
 func step() -> void:
-	_sync_partner_sprite()
-	var mode: String = str(GM.g.get("dataMode", "demo"))
-	if mode == "empty":
+	if int(GM.g.get("EvoStage", 2)) == 0:
 		hspeed = 0.0
+		_hatch_timer -= 1
+		if _hatch_timer <= 0:
+			GM.hatch_partner_egg()
+		_sync_partner_sprite()
 		return
+
+	_sync_partner_sprite()
 	_walk_timer -= 1
 	if _walk_timer <= 0:
 		_walk_timer = 90 + (GM.frame % 60)
@@ -31,14 +38,19 @@ func step() -> void:
 		image_xscale = -1.0 if _dir > 0.0 else 1.0
 
 
+func mouse_left_released() -> void:
+	if int(GM.g.get("EvoStage", 2)) == 0:
+		GM.hatch_partner_egg()
+		_sync_partner_sprite()
+	else:
+		GM.care_action("food")
+
+
 func _sync_partner_sprite() -> void:
-	var mode: String = str(GM.g.get("dataMode", "demo"))
-	if mode == "empty":
-		sprite_index = "spr_egg01"
+	if int(GM.g.get("EvoStage", 2)) == 0:
+		var egg_idx := clampi(int(GM.g.get("eggId", 0)), 0, 9)
+		sprite_index = "spr_egg%02d" % (egg_idx + 1)
 		image_xscale = 1.0
-		return
-	elif mode == "worst":
-		sprite_index = "d152_idle"
 		return
 	var pid: int = int(GM.g.get("partnerId", 5))
 	var act := "walk" if absf(hspeed) > 0.05 else "idle"
@@ -49,3 +61,10 @@ func _sync_partner_sprite() -> void:
 		sprite_index = "d%d_idle" % pid
 	else:
 		sprite_index = "d5_idle"
+
+
+func draw() -> void:
+	draw_self()
+	if int(GM.g.get("EvoStage", 2)) == 0:
+		draw_set_format("fnt_Text", 0xDDE105, 1, 1)
+		draw_text_shadow(x, y - 34.0, "Hatching DigiTama... (Tap!)", 0xDDE105, 0)

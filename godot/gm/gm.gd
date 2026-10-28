@@ -36,7 +36,23 @@ var g := {
 	"infinityFloor": 1, "adventureStage": 1, "challengeRank": 1,
 	"enemyId": 87, "enemyLv": 32, "battleZone": "Magma Mountain", "battleMode": "world",
 	"BattleBG": "bg_Btl_Magma_Mountain", "MainRoomBG": "BG26", "sanctuaryThemeIdx": 0,
+	"CamMulti": 1.0, "StatsAberto": false, "TraningWhat": 0, "TrainBoost": 1, "BulkTraining": false,
+	"LastEquipRoom": "room_PowerUpItems", "BiosLastPage": "room_Bios_Rookie",
+	"TamerName": "Tamer", "AgeEnabled": true, "EvoStage": 2, "eggId": 0,
 }
+
+const STARTER_EGGS := [
+	{"egg_spr": "spr_egg01", "baby_id": 1, "rookie_id": 3, "champ_id": 5, "name": "Botamon (Agumon Line)"},
+	{"egg_spr": "spr_egg02", "baby_id": 6, "rookie_id": 8, "champ_id": 10, "name": "Punimon (Gabumon Line)"},
+	{"egg_spr": "spr_egg03", "baby_id": 11, "rookie_id": 13, "champ_id": 15, "name": "Poyomon (Patamon Line)"},
+	{"egg_spr": "spr_egg04", "baby_id": 16, "rookie_id": 18, "champ_id": 20, "name": "Yuramon (Palmon Line)"},
+	{"egg_spr": "spr_egg05", "baby_id": 21, "rookie_id": 22, "champ_id": 24, "name": "Choromon (Tentomon Line)"},
+	{"egg_spr": "spr_egg06", "baby_id": 26, "rookie_id": 28, "champ_id": 30, "name": "Pichimon (Gomamon Line)"},
+	{"egg_spr": "spr_egg07", "baby_id": 31, "rookie_id": 33, "champ_id": 35, "name": "Nyokimon (Biyomon Line)"},
+	{"egg_spr": "spr_egg08", "baby_id": 36, "rookie_id": 38, "champ_id": 40, "name": "YukimiBotamon (Gatomon Line)"},
+	{"egg_spr": "spr_egg09", "baby_id": 41, "rookie_id": 43, "champ_id": 45, "name": "Chibomon (Veemon Line)"},
+	{"egg_spr": "spr_egg10", "baby_id": 46, "rookie_id": 48, "champ_id": 50, "name": "Jyarimon (Guilmon Line)"},
+]
 
 const MODERN_WORLD_WHITELIST := {
 	"obj_Digi": true,
@@ -93,7 +109,7 @@ const LEGACY_UI_OBJECTS := {
 	"obj_Terrain": true,
 }
 
-var use_modern_ui := true
+var use_modern_ui := false
 var battle: Dictionary = {}
 var instances: Array = []
 var room_name := ""
@@ -147,12 +163,52 @@ func _ready() -> void:
 	gui.layer = 40
 	add_child(gui)
 	ui = TamerUI.new()
+	ui.visible = use_modern_ui
 	gui.add_child(ui)
 	fx_gui = CanvasLayer.new()
 	fx_gui.layer = 60
 	add_child(fx_gui)
 	init_battle_state()
 	Engine.physics_ticks_per_second = FPS
+
+
+func start_new_game_with_egg(egg_idx: int) -> void:
+	var idx := clampi(egg_idx, 0, STARTER_EGGS.size() - 1)
+	var egg_info: Dictionary = STARTER_EGGS[idx]
+	g["eggId"] = idx
+	g["EvoStage"] = 0
+	g["partnerId"] = int(egg_info["rookie_id"])
+	g["partnerLv"] = 1
+	g["hp_max"] = 450
+	g["hp"] = 450
+	g["atk"] = 68
+	g["def"] = 58
+	g["sp_atk"] = 64
+	g["sp_def"] = 56
+	g["spd"] = 110
+	g["en"] = 100
+	g["xp"] = 0
+	g["hunger"] = 70
+	g["friendship"] = 25.0
+	g["injury"] = 0
+	g["poopCount"] = 0
+	init_battle_state()
+
+
+func hatch_partner_egg() -> void:
+	var idx := clampi(int(g.get("eggId", 0)), 0, STARTER_EGGS.size() - 1)
+	var egg_info: Dictionary = STARTER_EGGS[idx]
+	g["EvoStage"] = 2
+	g["partnerId"] = int(egg_info["rookie_id"])
+	g["partnerLv"] = maxi(5, int(g.get("partnerLv", 1)))
+	g["hp_max"] = maxi(950, int(g.get("hp_max", 450)) + 500)
+	g["hp"] = int(g["hp_max"])
+	g["atk"] = maxi(160, int(g.get("atk", 68)) + 92)
+	g["def"] = maxi(140, int(g.get("def", 58)) + 82)
+	g["sp_atk"] = maxi(155, int(g.get("sp_atk", 64)) + 91)
+	g["spd"] = maxi(185, int(g.get("spd", 110)) + 75)
+	play_sound_fx("snd_Digivolve")
+	init_battle_state()
 
 
 func init_battle_state() -> void:
@@ -619,19 +675,43 @@ func _switch_room(name: String) -> void:
 		if d["code"] != null:
 			_apply_creation_code(inst, d["code"])
 	_run_room_code(room_data["creationCode"])
-	if ui != null and use_modern_ui:
-		ui.rebuild_for_room(name)
+	if ui != null:
+		ui.visible = use_modern_ui
+		if use_modern_ui:
+			ui.rebuild_for_room(name)
 
 
-## 인스턴스 생성 코드: `변수 = 값;` 단순 대입만 해석한다.
+## 인스턴스 생성 코드: 단순 대입 및 Language/BulkTraining 조건부 대입을 모두 해석한다.
 func _apply_creation_code(inst: GMInstance, code_name: String) -> void:
 	var text := FileAccess.get_file_as_string(ROOT + "code/" + code_name + ".gml")
 	var re := RegEx.create_from_string("^\\s*([A-Za-z_]\\w*)\\s*=\\s*(.+?);\\s*$")
+	var skip_block := false
 	for line in text.split("\n"):
-		var m := re.search(line)
+		var s := line.strip_edges()
+		if s.is_empty() or s == "{" or s.begins_with("enum ") or s.begins_with("Value_"):
+			continue
+		if s == "}":
+			skip_block = false
+			continue
+		if s.begins_with("if (global.Language == 1)") or s.begins_with("else if (global.Language == 1)") or s.begins_with("else if (global.Language == 2)"):
+			skip_block = (int(g.get("Language", 0)) != 1)
+			continue
+		elif s.begins_with("if (global.Language == 0)"):
+			skip_block = (int(g.get("Language", 0)) != 0)
+			continue
+		elif s.begins_with("if (global.BulkTraining == false)"):
+			skip_block = (bool(g.get("BulkTraining", false)) != false)
+			continue
+		elif s == "else":
+			skip_block = not skip_block
+			continue
+		if skip_block:
+			continue
+		if s == "instance_destroy();":
+			inst.instance_destroy()
+			return
+		var m := re.search(s)
 		if m == null:
-			if not line.strip_edges().is_empty():
-				log_unhandled.append("%s: %s" % [code_name, line.strip_edges()])
 			continue
 		var v: Variant = _parse_value(m.get_string(2))
 		var key := m.get_string(1)
