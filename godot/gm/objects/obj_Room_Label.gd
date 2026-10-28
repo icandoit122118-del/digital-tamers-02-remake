@@ -1,54 +1,45 @@
 extends GMInstance
-## obj_Room_Label (상단 좌측 룸 타이틀 배너)
+## obj_Room_Label (Digital Tamers 02 Original "DIGIVICE V-LINK OS" — 좌상단 플로팅 OS 브레드크럼 헤더)
 
-const MAP := {
-	"room_SelectTraining": 1,
-	"room_Equipments": 2,
-	"room_Leader_Cartridges": 2,
-	"room_DigiVice": 3,
-	"room_Loja": 4,
-	"room_Inventory": 5,
-	"room_Achievements": 6,
-	"room_Database": 7,
-	"room_Loja_Core": 8,
-	"room_Tamer_Info": 9,
-	"room_Select_Battle_Mode": 10,
-	"room_Select_Map": 11,
-	"room_SelectDigi": 12,
-	"room_PowerUpItems": 13,
-	"room_Evo_Select": 15,
-	"room_Leader_Select": 17,
-	"room_Select_Challenge": 18,
-	"room_Infinity_Mode": 19,
-	"room_Infinity_PitStop": 19,
-	"room_Special_Food": 20,
-	"room_Tamer_Skills": 21,
-	"room_Battle_Items": 22,
-	"room_Skin_Selection": 23,
-	"room_options": 24,
-	"room_options_MainMenu": 24,
-	"room_Quest_Log": 25,
-	"room_Adventure_Mode_Start": 26,
+const TITLES := {
+	"room_SelectTraining": "V-GYM // TRAINING MATRIX",
+	"room_Equipments": "V-GEAR // EQUIPMENTS",
+	"room_Leader_Cartridges": "V-CORE // CARTRIDGES",
+	"room_DigiVice": "DIGIVICE V-LINK OS",
+	"room_Loja": "V-MARKET // SUPPLY SHOP",
+	"room_Inventory": "V-BAG // INVENTORY",
+	"room_Achievements": "V-LOG // ACHIEVEMENTS",
+	"room_Database": "V-ARCHIVE // DATABASE",
+	"room_Loja_Core": "V-CORE // EXCHANGE",
+	"room_Tamer_Info": "TAMER LICENSE CARD",
+	"room_Select_Battle_Mode": "SORTIE // BATTLE MODES",
+	"room_Select_Map": "DIGITAL WORLD // EXPEDITION",
+	"room_SelectDigi": "CRYO-STORAGE // DIGIMON BOX",
+	"room_PowerUpItems": "ENHANCE // POWER-UP CHIPS",
+	"room_Evo_Select": "EVO-LAB // DIGIVOLUTION",
+	"room_Evolution": "EVO-LAB // DIGIVOLUTION",
+	"room_Leader_Select": "COMMAND // LEADER SKILL",
+	"room_Select_Challenge": "COLOSSEUM // CHALLENGE",
+	"room_Infinity_Mode": "ABYSS // INFINITY TOWER",
+	"room_Special_Food": "BISTRO // SPECIAL CUISINE",
+	"room_Tamer_Skills": "MASTERY // TAMER SKILLS",
+	"room_Battle_Items": "ARMORY // BATTLE GEAR",
+	"room_Quest_Log": "MISSIONS // QUEST LOG",
+	"room_Adventure_Mode_Start": "CAMPAIGN // ADVENTURE",
 }
 
 
 func create() -> void:
 	image_speed = 0.0
-	_sync()
+	depth = -2000
 
 
-func step() -> void:
-	_sync()
-
-
-func _sync() -> void:
-	sprite_index = "spr_RoomNames" if GM.g["Language"] == 0 else "spr_RoomNames_PTBR"
+func draw() -> void:
 	var r := GM.room_name
+	var title: String = str(TITLES.get(r, "DIGIVICE V-LINK OS"))
 	if r.begins_with("room_Bios_"):
-		image_index = 0
-	elif r.begins_with("room_Deco"):
-		image_index = 16
-	elif r.begins_with("room_Adventure_"):
-		image_index = 26
-	else:
-		image_index = MAP.get(r, 24)
+		title = "ENCYCLOPEDIA // DIGIMON BIOS"
+	CBStyle.draw_vlink_panel(self, Rect2(6.0, 3.0, 224.0, 22.0), CBStyle.BG_PANEL, CBStyle.BORDER_CYAN, 5.0, true)
+	CBStyle.draw_hex_avatar(self, Vector2(18.0, 14.0), 6.0, CBStyle.BORDER_GOLD, CBStyle.BG_DEEP)
+	draw_set_format("fnt_Text", 0xFFFFFF, 0, 0)
+	draw_text_shadow(28.0, 6.5, title, 0xF8FAFC, 0x0B111E)

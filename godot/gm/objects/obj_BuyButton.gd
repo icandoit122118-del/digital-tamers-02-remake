@@ -1,5 +1,5 @@
 extends GMInstance
-## obj_BuyButton (원작 room_Loja 아이템 구매 버튼)
+## obj_BuyButton (Digital Tamers 02 Original "DIGIVICE V-LINK OS" — V-MARKET 구매 확정 캡슐 버튼)
 
 var ImClicked := false
 
@@ -10,16 +10,13 @@ func create() -> void:
 
 func mouse_left_pressed() -> void:
 	ImClicked = true
-	image_blend = Color8(0xB0, 0xB0, 0xB0)
 
 
 func mouse_leave() -> void:
 	ImClicked = false
-	image_blend = Color.WHITE
 
 
 func mouse_left_released() -> void:
-	image_blend = Color.WHITE
 	if not ImClicked:
 		return
 	ImClicked = false
@@ -29,8 +26,15 @@ func mouse_left_released() -> void:
 			sel_id = int(inst.get("Iam"))
 			break
 	var it: Dictionary = GM.db["items"].get(str(sel_id), {})
-	var price: int = maxi(100, int(it.get("price", 250)))
+	var price: int = maxi(25, int(it.get("price", 25)))
 	if int(GM.g.get("bits", 24500)) >= price:
 		GM.g["bits"] = int(GM.g.get("bits", 24500)) - price
 		GM.g["equippedItem"] = sel_id
 		GM.play_sound_fx("snd_buy")
+
+
+func draw() -> void:
+	var br := Rect2(x - 46.0, y - 15.0, 92.0, 30.0)
+	CBStyle.draw_vlink_panel(self, br, CBStyle.ACCENT_EMERALD if ImClicked else Color8(6, 95, 70, 245), CBStyle.BORDER_GOLD, 6.0, true)
+	draw_set_format("fnt_Text", 0xFFFFFF, 1, 1)
+	draw_text_shadow(x, y, "PURCHASE", 0xFFFFFF, 0x0B111E)

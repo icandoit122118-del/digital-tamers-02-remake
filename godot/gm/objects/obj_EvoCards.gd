@@ -1,5 +1,5 @@
 extends GMInstance
-## obj_EvoCards (원작 gml_Object_obj_EvoCards_Draw_0.gml: 진화 분기 카드 & 클릭 시 진화 실행)
+## obj_EvoCards (Digital Tamers 02 Original "DIGIVICE V-LINK OS" — 헥사-코어 진화 매트릭스 캡슐 카드)
 
 var ID := 1
 var EvoInto := 5
@@ -43,16 +43,13 @@ func _sync_route() -> void:
 
 func mouse_left_pressed() -> void:
 	ImClicked = true
-	image_blend = Color8(0xB8, 0xB8, 0xB8)
 
 
 func mouse_leave() -> void:
 	ImClicked = false
-	image_blend = Color.WHITE
 
 
 func mouse_left_released() -> void:
-	image_blend = Color.WHITE
 	if not ImClicked:
 		return
 	ImClicked = false
@@ -64,16 +61,27 @@ func mouse_left_released() -> void:
 func draw() -> void:
 	if x > 530.0:
 		return
-	draw_self()
-	draw_sprite_ext("spr_EvoStage", clampi(int(GM.g.get("EvoStage", 2)) + 1, 1, 6), x + 4.0, y + 61.0, 1.0, 1.0, 0.0, image_blend, 1.0)
-	draw_sprite_ext("spr_Family", EvoInto % 8, x + 14.0, y + 57.0, 1.0, 1.0, 0.0, image_blend, 1.0)
-	draw_sprite_ext("spr_ElemAttribute", EvoInto % 10, x + 28.0, y + 57.0, 1.0, 1.0, 0.0, image_blend, 1.0)
-	draw_sprite_ext("spr_Attribute", EvoInto % 4, x + 44.0, y + 58.0, 1.0, 1.0, 0.0, image_blend, 1.0)
-	draw_sprite_ext("spr_Icons", EvoInto, x + 34.0, y + 30.0, -2.0, 2.0, 0.0, image_blend, 1.0)
-	draw_sprite("spr_CanEvo", 0, x + 205.0, y + 6.0)
+	var cr := Rect2(x, y, 244.0, 76.0)
+	CBStyle.draw_vlink_panel(self, cr, CBStyle.BG_PANEL if not ImClicked else CBStyle.BG_SLOT, CBStyle.BORDER_CYAN, 7.0, true)
 
-	draw_set_format("fnt_Text", 0xDDE105, 0, 0)
-	draw_text_shadow(x + 69.0, y + 11.0, EvoName, 0xDDE105, 0)
+	# 좌측 육각 디지코어 초상화 포드
+	CBStyle.draw_hex_avatar(self, Vector2(x + 34.0, y + 32.0), 24.0, CBStyle.BORDER_GOLD, CBStyle.BG_DEEP)
+	draw_sprite_ext("spr_Icons", EvoInto, x + 34.0, y + 30.0, -1.6, 1.6, 0.0, Color.WHITE, 1.0)
+	draw_sprite_ext("spr_EvoStage", clampi(int(GM.g.get("EvoStage", 2)) + 1, 1, 6), x + 8.0, y + 58.0, 1.0, 1.0, 0.0, Color.WHITE, 1.0)
+	draw_sprite_ext("spr_Family", EvoInto % 8, x + 20.0, y + 54.0, 1.0, 1.0, 0.0, Color.WHITE, 1.0)
+	draw_sprite_ext("spr_ElemAttribute", EvoInto % 10, x + 34.0, y + 54.0, 1.0, 1.0, 0.0, Color.WHITE, 1.0)
+	draw_sprite_ext("spr_Attribute", EvoInto % 4, x + 49.0, y + 56.0, 1.0, 1.0, 0.0, Color.WHITE, 1.0)
+
+	# 우측 진화 데이터 & UNLOCKED 배지
+	CBStyle.draw_vlink_panel(self, Rect2(x + 178.0, y + 8.0, 58.0, 16.0), Color8(6, 78, 59, 240), CBStyle.ACCENT_EMERALD, 3.5, false)
+	draw_set_format("fnt_SmlText", 0xFFFFFF, 1, 1)
+	draw_text_shadow(x + 207.0, y + 16.0, "UNLOCKED", 0x81B910, 0)
+
 	draw_set_format("fnt_Text", 0xFFFFFF, 0, 0)
-	draw_text_shadow(x + 70.0, y + 28.0, CondTxt, 0xFFFFFF, 0)
-	draw_text_shadow(x + 70.0, y + 45.0, "+%d HP / +%d ATK" % [BonusHp, BonusAtk], 0x6BFF5A, 0)
+	draw_text_shadow(x + 68.0, y + 10.0, EvoName, 0x0B9EF5, 0)
+	draw_set_format("fnt_SmlText", 0xFFFFFF, 0, 0)
+	draw_text_shadow(x + 68.0, y + 29.0, "REQ // %s" % CondTxt, 0xF8FAFC, 0)
+
+	CBStyle.draw_vlink_panel(self, Rect2(x + 68.0, y + 46.0, 168.0, 20.0), CBStyle.BG_DEEP, CBStyle.BORDER_SUBTLE, 4.0, false)
+	draw_set_format("fnt_SmlText", 0xFFFFFF, 1, 1)
+	draw_text_shadow(x + 152.0, y + 56.0, "+%d HP   |   +%d ATK" % [BonusHp, BonusAtk], 0x81B910, 0)

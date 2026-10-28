@@ -1,5 +1,5 @@
 extends GMInstance
-## obj_BLOCK_button (원작 좌하단 가드 버튼 -> 클릭 시 acao=5 가드 발동)
+## obj_BLOCK_button (Digital Tamers 02 Original "DIGIVICE V-LINK OS" — 좌하단 'SHIELD' 방어 모듈)
 
 var ImClicked := false
 
@@ -25,3 +25,7 @@ func mouse_left_released() -> void:
 		if inst.obj_name == "obj_Digi_Battle" and not inst.dead:
 			inst._cast_skill(2, 1.0)
 			break
+
+
+func draw() -> void:
+	CBStyle.draw_dock_module(self, Rect2(70.0, 254.0, 54.0, 38.0), CBStyle.ACCENT_AMBER, "DF", "SHIELD", 0, ImClicked)

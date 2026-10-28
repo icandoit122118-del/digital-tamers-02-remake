@@ -1,8 +1,11 @@
 extends GMInstance
-## obj_Training_Buttons (원작 gml_Object_obj_Training_Buttons_Mouse_7.gml: 7개 스탯 훈련 선택 버튼)
+## obj_Training_Buttons (Digital Tamers 02 Original "DIGIVICE V-LINK OS" — 헥사곤 훈련 코어 노드)
 
 var MyTraining := 0
 var ImClicked := false
+
+const TRAIN_LABELS := ["HP", "ATK", "DEF", "SP.ATK", "SP.DEF", "SPIRIT", "RANDOM"]
+const TRAIN_SUBS := ["VITALITY", "STRIKE", "ARMOR", "BLASTER", "BARRIER", "SPEED", "ALL-SYNC"]
 
 
 func create() -> void:
@@ -38,3 +41,22 @@ func mouse_left_released() -> void:
 	GM.play_sound_fx("snd_Click06")
 	GM.g["TraningWhat"] = int(vars.get("MyTraining", MyTraining))
 	GM.room_transition(6, "room_Training")
+
+
+func draw() -> void:
+	var tid := clampi(int(vars.get("MyTraining", MyTraining)), 0, 6)
+	var cols := [
+		CBStyle.ACCENT_EMERALD,
+		CBStyle.ACCENT_ROSE,
+		CBStyle.ACCENT_CYAN,
+		CBStyle.ACCENT_INDIGO,
+		CBStyle.ACCENT_AMBER,
+		CBStyle.BORDER_GOLD,
+		CBStyle.BORDER_CYAN,
+	]
+	var col: Color = cols[tid]
+	CBStyle.draw_hex_avatar(self, Vector2(x, y), 27.0, col, CBStyle.BG_PANEL if not ImClicked else CBStyle.BG_SLOT)
+	draw_set_format("fnt_Text", 0xFFFFFF, 1, 1)
+	draw_text_shadow(x, y - 4.0, TRAIN_LABELS[tid], 0xFFFFFF, 0x0B111E)
+	draw_set_format("fnt_SmlText", 0xFFFFFF, 1, 1)
+	draw_text_shadow(x, y + 8.0, TRAIN_SUBS[tid], 0x0B9EF5, 0x0B111E)

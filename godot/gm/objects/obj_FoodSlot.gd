@@ -1,5 +1,5 @@
 extends GMInstance
-## obj_FoodSlot (원작 gml_Object_obj_FoodSlot_Draw_0.gml: 좌측 케어 슬롯 — 고기, 버섯, 비타민, 약, 붕대, 청소)
+## obj_FoodSlot (Digital Tamers 02 Original "DIGIVICE V-LINK OS" — 나노-케어 2x HD 아이템 캡슐 슬롯)
 
 var ID := 1
 var XX := -136.0
@@ -63,13 +63,16 @@ func mouse_left_released() -> void:
 
 
 func draw() -> void:
-	draw_sprite_ext("spr_Food_Slot", imgInd, x, y, 1.0, 1.0, 0.0, Color.WHITE, 1.0)
+	if x < -20.0:
+		return
+	var sr := Rect2(x - 13.0, y - 13.0, 26.0, 26.0)
+	var bd_c := CBStyle.BORDER_GOLD if Selected else CBStyle.BORDER_SUBTLE
+	var bg_c := CBStyle.BG_SLOT if Selected else CBStyle.BG_CARD
+	CBStyle.draw_vlink_panel(self, sr, bg_c, bd_c, 3.5, false)
 	if ID == 56:
 		draw_sprite_ext("spr_Ball", 0, x, y, 1.0, 1.0, 0.0, Color.WHITE, 1.0)
 	else:
 		draw_sprite_ext("spr_Items", ID, x, y, 1.0, 1.0, 0.0, Color.WHITE, 1.0)
-	if Selected:
-		draw_sprite_ext("spr_Food_Slot", 1, x, y, 1.0, 1.0, 0.0, Color.WHITE, 1.0)
 	if ID != 10 and ID != 56:
-		draw_set_format("fnt_Text", 0xFFFFFF, 0, 2)
-		draw_text_shadow(x + 15.0, y + 4.0, "x9", 0xFFFFFF, 0)
+		draw_set_format("fnt_SmlText", 0xFFFFFF, 0, 2)
+		draw_text_shadow(x + 12.0, y + 3.0, "x9", 0x0B9EF5, 0)

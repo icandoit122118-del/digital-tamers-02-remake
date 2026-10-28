@@ -1,5 +1,6 @@
 class_name GMInstance
 extends Node2D
+const CBStyle := preload("res://gm/ui/cb_style.gd")
 ## GameMaker 인스턴스 호환 베이스. Node2D 위치는 항상 (0,0)이고 좌표는 x/y(룸 좌표)로 직접 그린다.
 ## 가상 이벤트: create / step / draw / on_alarm(n) / mouse_enter / mouse_leave /
 ##              mouse_left_pressed / mouse_left_released / global_left_released

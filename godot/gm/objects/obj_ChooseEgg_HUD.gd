@@ -1,5 +1,5 @@
 extends GMInstance
-## obj_ChooseEgg_HUD (원작 gml_Object_obj_ChooseEgg_HUD_Create_0.gml: 10종 스타터 디지타마 선택)
+## obj_ChooseEgg_HUD (Digital Tamers 02 Original "DIGIVICE V-LINK OS" — 10종 스타터 디지타마 인큐베이터 매트릭스)
 
 var chosenEGG := -1
 var EggName := ""
@@ -30,8 +30,22 @@ func select_egg(id_val: int) -> void:
 
 
 func draw() -> void:
-	draw_self()
-	draw_set_format("fnt_MidText", 0xDDE105, 0, 1)
-	draw_text_shadow(269.0, 14.0, "Kurihara Hina: Choose your Starter DigiTama!", 0xDDE105, 0)
+	# 상단 플로팅 인큐베이터 헤더
+	CBStyle.draw_vlink_panel(self, Rect2(74.0, 6.0, 390.0, 24.0), CBStyle.BG_PANEL, CBStyle.BORDER_GOLD, 6.0, true)
+	draw_set_format("fnt_MidText", 0xFFFFFF, 0, 1)
+	draw_text_shadow(269.0, 12.0, "V-INCUBATOR // SELECT STARTER DIGITAMA", 0x0B9EF5, 0)
+
+	# 메인 인큐베이션 챔버 패널
+	CBStyle.draw_vlink_panel(self, Rect2(x - 4.0, y + 6.0, 384.0, 210.0), CBStyle.BG_DEEP, CBStyle.BORDER_CYAN, 10.0, true)
+	var cols := [40.0, 114.0, 188.0, 262.0, 336.0]
+	var rows := [71.0, 151.0]
+	for r in rows.size():
+		for c in cols.size():
+			var cx: float = x + float(cols[c])
+			var cy: float = y + float(rows[r])
+			CBStyle.draw_hex_avatar(self, Vector2(cx, cy - 2.0), 26.0, CBStyle.BORDER_SUBTLE, CBStyle.BG_PANEL)
+
+	# 하단 가이드 배지
+	CBStyle.draw_vlink_panel(self, Rect2(64.0, 266.0, 410.0, 22.0), CBStyle.BG_PANEL, CBStyle.BORDER_SUBTLE, 5.0, false)
 	draw_set_format("fnt_Text", 0xFFFFFF, 0, 1)
-	draw_text_shadow(269.0, 272.0, "Tap any DigiTama to begin your Digital Tamers 02 journey in Network Lodging!", 0xFFFFFF, 0)
+	draw_text_shadow(269.0, 272.0, "Tap any DigiTama Pod to initialize your V-Link Sanctuary!", 0x81B910, 0)

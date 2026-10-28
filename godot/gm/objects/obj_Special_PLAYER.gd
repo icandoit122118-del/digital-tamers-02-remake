@@ -1,5 +1,5 @@
 extends GMInstance
-## obj_Special_PLAYER (원작 좌하단 필살기 오브/아이콘 버튼 -> 클릭 시 SP 궁극기 발동)
+## obj_Special_PLAYER (Digital Tamers 02 Original "DIGIVICE V-LINK OS" — 좌하단 'OVERDRIVE' 궁극기 모듈)
 
 var ImClicked := false
 
@@ -7,10 +7,6 @@ var ImClicked := false
 func create() -> void:
 	image_speed = 0.0
 	depth = -2100
-
-
-func step() -> void:
-	image_index = 1.0 if float(GM.battle.get("p_sp", 0.0)) >= 100.0 else 0.0
 
 
 func mouse_left_pressed() -> void:
@@ -29,3 +25,7 @@ func mouse_left_released() -> void:
 		if inst.obj_name == "obj_Digi_Battle" and not inst.dead:
 			inst._cast_skill(3, 1.0)
 			break
+
+
+func draw() -> void:
+	CBStyle.draw_dock_module(self, Rect2(10.0, 254.0, 56.0, 38.0), CBStyle.ACCENT_ROSE, "EX", "BURST", 6, ImClicked)

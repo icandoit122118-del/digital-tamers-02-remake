@@ -1,7 +1,26 @@
 extends GMInstance
-## obj_Long_Buttons (원작 gml_Object_obj_Long_Buttons_Mouse_7.gml: 디지바이스/진화/도감/배틀아이템 긴 버튼)
+## obj_Long_Buttons (Digital Tamers 02 Original "DIGIVICE V-LINK OS" — 플로팅 헥사-코어 서브메뉴 모듈 바)
 
 var ImClicked := false
+
+const LABELS := [
+	"CRYO-STORAGE // DIGIMON BOX",
+	"ARMORY // EQUIPMENT & GEAR",
+	"V-BAG // ITEM INVENTORY",
+	"ENCYCLOPEDIA // DIGIMON BIOS",
+	"TACTICAL RECORD // ACHIEVEMENTS",
+	"TAMER LICENSE // ID CARD",
+	"EVO-LAB // DIGIVOLUTION",
+	"DNA CORE // JOGRESS LAB",
+	"TERRAFORM // SANCTUARY BIOME",
+	"COMMAND // LEADER SELECTION",
+	"BISTRO // SPECIAL CUISINE",
+	"ARMORY // EQUIPMENTS",
+	"ENHANCE // POWER-UP CHIPS",
+	"SYSTEM // CONFIGURATION",
+	"MISSIONS // ACTIVE QUESTS",
+	"V-CORE // CARTRIDGES",
+]
 
 
 func create() -> void:
@@ -51,6 +70,10 @@ func mouse_left_released() -> void:
 
 
 func draw() -> void:
-	draw_self()
-	if ImClicked:
-		draw_sprite("spr_Long_Button_SEL", 0, x, y)
+	var idx := clampi(int(round(image_index)), 0, LABELS.size() - 1)
+	var br := Rect2(x - 102.0, y - 14.0, 204.0, 28.0)
+	CBStyle.draw_vlink_panel(self, br, CBStyle.BG_SLOT if ImClicked else CBStyle.BG_PANEL, CBStyle.BORDER_GOLD if ImClicked else CBStyle.BORDER_CYAN, 6.0, true)
+	CBStyle.draw_hex_avatar(self, Vector2(br.position.x + 16.0, br.position.y + 14.0), 8.5, CBStyle.BORDER_GOLD, CBStyle.BG_DEEP)
+	draw_colored_polygon(PackedVector2Array([Vector2(br.position.x + 14.0, br.position.y + 11.0), Vector2(br.position.x + 19.0, br.position.y + 14.0), Vector2(br.position.x + 14.0, br.position.y + 17.0)]), CBStyle.TEXT_BRIGHT)
+	draw_set_format("fnt_Text", 0xFFFFFF, 1, 0)
+	draw_text_shadow(br.position.x + 32.0, br.position.y + 14.0, LABELS[idx], 0xF8FAFC, 0x0B111E)

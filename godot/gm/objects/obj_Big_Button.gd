@@ -1,9 +1,8 @@
 extends GMInstance
-## obj_Big_Button (원작 gml_Object_obj_Big_Button_Mouse_7.gml: 4대 배틀 모드 선택 카드)
+## obj_Big_Button (Digital Tamers 02 Original "DIGIVICE V-LINK OS" — 4대 출격 모드 버티컬 홀로-배너)
 
 var ImClicked := false
 var MyRoom := "room_Select_Map"
-var color := 8816262
 var CanGo := true
 
 
@@ -22,16 +21,13 @@ func step() -> void:
 
 func mouse_left_pressed() -> void:
 	ImClicked = true
-	color = 4522223
 
 
 func mouse_leave() -> void:
 	ImClicked = false
-	color = 8816262
 
 
 func mouse_left_released() -> void:
-	color = 8816262
 	if not ImClicked or GM.instance_exists("obj_Transition"):
 		ImClicked = false
 		return
@@ -53,7 +49,31 @@ func mouse_left_released() -> void:
 
 
 func draw() -> void:
-	draw_set_color(color)
-	draw_rectangle(x - 47.0, y - 80.0, x + 47.0, y + 80.0, false)
-	draw_set_color(0xFFFFFF)
+	var target := str(vars.get("MyRoom", MyRoom))
+	var accent := CBStyle.ACCENT_CYAN
+	var title := "DIGITAL WORLD"
+	var sub := "FREE EXPEDITION"
+	if target == "room_Select_Challenge":
+		accent = CBStyle.ACCENT_AMBER
+		title = "COLOSSEUM"
+		sub = "TAMER CHALLENGE"
+	elif target == "room_Infinity_Mode":
+		accent = CBStyle.ACCENT_INDIGO
+		title = "INFINITY TOWER"
+		sub = "ENDLESS BOSS RUSH"
+	elif target == "room_Adventure_Mode_Start":
+		accent = CBStyle.ACCENT_ROSE
+		title = "CAMPAIGN"
+		sub = "ADVENTURE STORY"
+
+	var br := Rect2(x - 52.0, y - 92.0, 104.0, 184.0)
+	CBStyle.draw_vlink_panel(self, br, CBStyle.BG_PANEL if not ImClicked else CBStyle.BG_SLOT, accent, 8.0, true)
+	# 중앙 원본 일러스트 크롭/표시
 	draw_self()
+	# 하단 V-LINK 캡슐 타이틀 오버레이
+	var cap_r := Rect2(x - 48.0, y + 48.0, 96.0, 38.0)
+	CBStyle.draw_vlink_panel(self, cap_r, CBStyle.BG_DEEP, accent, 5.0, false)
+	draw_set_format("fnt_Text", 0xFFFFFF, 1, 1)
+	draw_text_shadow(x, y + 61.0, title, 0xFFFFFF, 0)
+	draw_set_format("fnt_SmlText", 0xFFFFFF, 1, 1)
+	draw_text_shadow(x, y + 75.0, sub, 0x0B9EF5, 0)

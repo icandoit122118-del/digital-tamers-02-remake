@@ -1,5 +1,5 @@
 extends GMInstance
-## obj_store_items (원작 gml_Object_obj_store_items_Draw_0.gml: 상점 판매 아이템 행 + 2x HD 아이템 아이콘 렌더링)
+## obj_store_items (Digital Tamers 02 Original "DIGIVICE V-LINK OS" — V-MARKET 우측 HD 아이템 카탈로그 행)
 
 var ID := 1
 var ItemName := "Small Meat"
@@ -23,7 +23,6 @@ func _sync_item() -> void:
 	var lang: int = int(GM.g.get("Language", 0))
 	ItemName = str(it.get("name_pt" if lang == 1 else "name", "Item %d" % ID))
 	ItemPrice = maxi(25, int(it.get("price", 100)))
-	image_index = float(posmod(ID, 30))
 
 
 func mouse_left_pressed() -> void:
@@ -54,14 +53,18 @@ func draw() -> void:
 		if inst.obj_name == "obj_item_info" and not inst.dead:
 			sel_id = int(inst.get("Iam"))
 			break
-	if sel_id == ID:
-		draw_set_color(0xCE39FF)
-		draw_rectangle(x - 5.0, y + 1.0, x + 189.0, y + 12.0, false)
-	draw_set_color(0xFFFFFF)
-	# 슬롯 프레임 + 해당 아이템 고유 2x HD 아이콘(spr_Items_HD) 렌더링
-	draw_sprite("spr_store_items", 0, x, y)
-	draw_sprite_stretched("spr_Items", ID, x - 18.0, y + 1.0, 12.0, 12.0, Color.WHITE, 1.0)
+	var is_sel := (sel_id == ID)
+	var row_r := Rect2(x - 20.0, y, 214.0, 14.0)
+	CBStyle.draw_vlink_panel(
+		self,
+		row_r,
+		CBStyle.BG_SLOT if is_sel else CBStyle.BG_DEEP,
+		CBStyle.BORDER_GOLD if is_sel else CBStyle.BORDER_SUBTLE,
+		3.0,
+		false
+	)
+	draw_sprite_stretched("spr_Items", ID, x - 16.0, y + 1.0, 12.0, 12.0, Color.WHITE, 1.0)
 	draw_set_format("fnt_Text", 0xFFFFFF, 0, 0)
-	draw_text_shadow(x, y + 1.0, ItemName, 0xFFFFE7, 0x9C7342)
-	draw_set_format("fnt_Text", 0xDDE105, 0, 2)
-	draw_text_shadow(x + 190.0, y + 1.0, "%d B" % ItemPrice, 0xDDE105, 0)
+	draw_text_shadow(x + 2.0, y + 1.5, ItemName, 0x0B9EF5 if is_sel else 0xF8FAFC, 0)
+	draw_set_format("fnt_Text", 0xFFFFFF, 0, 2)
+	draw_text_shadow(x + 188.0, y + 1.5, "%d B" % ItemPrice, 0x81B910, 0)

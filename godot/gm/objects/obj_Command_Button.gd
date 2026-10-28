@@ -1,5 +1,5 @@
 extends GMInstance
-## obj_Command_Button (원작 하단 3개 커맨드 버튼 ID=1,2,3 -> 스킬 시전 및 오토배틀 전술 전환)
+## obj_Command_Button (Digital Tamers 02 Original "DIGIVICE V-LINK OS" — 좌하단 3대 택티컬 아츠 모듈)
 
 var ID := 1
 var ImClicked := false
@@ -21,16 +21,13 @@ func step() -> void:
 
 func mouse_left_pressed() -> void:
 	ImClicked = true
-	image_blend = Color8(0xB0, 0xB0, 0xB0)
 
 
 func mouse_leave() -> void:
 	ImClicked = false
-	image_blend = Color.WHITE
 
 
 func mouse_left_released() -> void:
-	image_blend = Color.WHITE
 	if not ImClicked:
 		return
 	ImClicked = false
@@ -40,3 +37,12 @@ func mouse_left_released() -> void:
 		if inst.obj_name == "obj_Digi_Battle" and not inst.dead:
 			inst._cast_skill(sk_idx, 1.0)
 			break
+
+
+func draw() -> void:
+	var idx := clampi(ID - 1, 0, 2)
+	var kx := 128.0 + float(idx) * 56.0
+	var labels := ["STRIKE", "ASSAULT", "BLASTER"]
+	var cols := [CBStyle.ACCENT_CYAN, CBStyle.ACCENT_EMERALD, CBStyle.ACCENT_INDIGO]
+	var icons := [1, 2, 3]
+	CBStyle.draw_dock_module(self, Rect2(kx, 254.0, 52.0, 38.0), cols[idx], "0%d" % (idx + 1), labels[idx], icons[idx], ImClicked)

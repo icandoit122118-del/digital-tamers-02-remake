@@ -1,5 +1,5 @@
 extends GMInstance
-## obj_HunGear_01 (원작 gml_Object_obj_HunGear_01_Draw_0.gml: 월드맵 Healing Gear 슬롯)
+## obj_HunGear_01 (Digital Tamers 02 Original "DIGIVICE V-LINK OS" — 월드맵 HEALING GEAR 모듈)
 
 var buttonX := 0.0
 var YY := 0.0
@@ -11,31 +11,23 @@ var scrollPerc := 0.0
 
 func create() -> void:
 	alarm[0] = 15
-	alarm[1] = 5
 
 
 func on_alarm(n: int) -> void:
 	if n == 0:
 		YY = -2.0 if YY == 0.0 else 0.0
 		alarm[0] = 15
-	elif n == 1:
-		img = (img + 1) % 2
-		alarm[1] = 5
 
 
 func draw() -> void:
-	draw_self()
-	draw_sprite("spr_Scroll_Button", img, x + buttonX, y)
-	draw_sprite("spr_Items", ID, x - 43.0, (y + YY) - 26.0)
-	draw_set_format("fnt_Text", 0, 0, 0)
-	draw_text(x - 72.0, y - 52.0, "Healing")
-	draw_set_color(0xFFFFFF)
-	draw_text(x - 73.0, y - 53.0, "Healing")
-	draw_set_format("fnt_SmlText", 0, 0, 0)
-	draw_text(x - 11.0, y - 49.0, FXs)
-	draw_set_color(0xDDE105)
-	draw_text(x - 12.0, y - 50.0, FXs)
-	draw_set_format("fnt_Text", 0, 0, 2)
-	draw_text(x - 10.0, y - 6.0, "x9")
-	draw_set_color(0xFFFFFF)
-	draw_text(x - 11.0, y - 7.0, "x9")
+	var r := Rect2(x - 76.0, y - 58.0, 256.0, 62.0)
+	CBStyle.draw_vlink_panel(self, r, CBStyle.BG_PANEL, CBStyle.ACCENT_EMERALD, 6.0, true)
+	CBStyle.draw_hex_avatar(self, Vector2(x - 44.0, y - 24.0), 20.0, CBStyle.ACCENT_EMERALD, CBStyle.BG_DEEP)
+	draw_sprite("spr_Items", ID, x - 44.0, (y + YY) - 24.0)
+
+	draw_set_format("fnt_Text", 0xFFFFFF, 0, 0)
+	draw_text_shadow(x - 70.0, y - 54.0, "NANO-REPAIR // HEALING", 0x81B910, 0)
+	draw_set_format("fnt_SmlText", 0xFFFFFF, 0, 2)
+	draw_text_shadow(x + 174.0, y - 53.0, FXs, 0x0B9EF5, 0)
+	draw_set_format("fnt_SmlText", 0xFFFFFF, 0, 2)
+	draw_text_shadow(x - 16.0, y - 9.0, "x9", 0xFFFFFF, 0)
